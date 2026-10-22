@@ -1,6 +1,6 @@
 ---
 name: experiment-record
-description: Experiment and decision record standard (project memory). Use for requests like "memory", "deney kaydet", "log tut", "bu denemeyi yaz", "record this run", "sonuçları kaydet", "config/seed not al", "note the config/seed", "deney geçmişine bak", "ne denemiştim", "logs'a bak", "check the logs". Records model training, fine-tuning, ablations, dataset experiments and debugging sessions, plus decisions that must persist, in a reproducible form. Paths and scope come from the project profile (.pi/beyin-project.json).
+description: Experiment and decision record standard (project memory). Use for requests like "deney kaydet", "bu denemeyi yaz", "logs'a bak", "record this run", "check the logs". Records training, fine-tuning, ablations, dataset experiments, debugging sessions and decisions that must persist, in a reproducible form. Paths and scope come from .pi/beyin-project.json.
 ---
 
 # Experiment Record — Experiment and Decision Log

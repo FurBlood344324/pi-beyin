@@ -1,6 +1,6 @@
 ---
 name: literature
-description: Literature/paper reading-task assignment and note-taking procedure. Use for requests like "literatür", "makale oku", "paper oku", "şu makaleyi oku", "okuma görevi ver", "not ekle", "şunu okudum anlatayım", "teori çalış", "read this paper", "give me a reading task", "add a note". Assigns reading tasks with focus questions; when the user explains what they read, writes an ordered note into the literature directory. Applies the "concept before tool" principle. Paths come from the project profile.
+description: Literature/paper reading-task assignment and note-taking procedure. Use for requests like "makale oku", "okuma görevi ver", "şunu okudum anlatayım", "read this paper", "give me a reading task". Assigns reading tasks with focus questions; writes an ordered note when the user explains what they read. Concept before tool. Paths from the project profile.
 ---
 
 # Literature — Task Assignment and Note-Taking

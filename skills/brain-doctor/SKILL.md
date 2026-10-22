@@ -1,6 +1,6 @@
 ---
 name: brain-doctor
-description: Health check for the beyin installation — does memory actually work, are sources indexed, are hook/worker, skills and updates healthy. Use for requests like "beyin doktor", "hafıza çalışıyor mu", "sağlık kontrolü", "doctor çalıştır", "neden hatırlamıyor", "hook çalışmıyor", "skill çakışması", "run a health check", "is the memory working", "why doesn't it remember", "check the hook". Never turns an indicator green by deleting data.
+description: Health check for the beyin installation — is memory indexed, are sources synced, are skills and updates healthy. Use for requests like "beyin doktor", "hafıza çalışıyor mu", "neden hatırlamıyor", "run a health check", "why doesn't it remember". Never turns an indicator green by deleting data.
 ---
 
 # Beyin doctor

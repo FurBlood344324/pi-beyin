@@ -1,6 +1,6 @@
 ---
 name: maintenance
-description: System maintenance / garbage-collection PROPOSAL procedure. Use for requests like "temizlik", "bakım", "sistemi toparla", "çöplükleri temizle", "clean up", "tidy the repo", "oturumu kapat", "yeni oturuma geçmeden temizle", "kompakte et", "compact the state". Also PROPOSE maintenance to the user at natural moments such as session close or phase transition. IMPORTANT — never runs on its own or on a schedule; it only proposes, and acts after user approval. Paths come from the project profile.
+description: System maintenance / garbage-collection PROPOSAL procedure. Use for requests like "temizlik", "sistemi toparla", "kompakte et", "clean up", "compact the state". Also propose maintenance at natural moments such as session close. IMPORTANT — never runs on its own or on a schedule; it only proposes, and acts after user approval. Paths from the project profile.
 ---
 
 # Maintenance — Garbage Collection PROPOSAL (runs on approval)

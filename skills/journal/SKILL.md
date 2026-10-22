@@ -1,6 +1,6 @@
 ---
 name: journal
-description: Daily journal (raw narrative) recording procedure. Use for requests like "günlük", "bugün ne yaptık", "günlüğe ekle", "bugünü kaydet", "gün sonu", "oturumu yaz", "dün ne yapmıştık", "günlüklerime bak", "journal this", "log today", "what did we do yesterday". Detects the system date, opens `YYYY-MM-DD.md` in the journal directory (creating it if absent) and adds what was done that day — including work done through conversation — as prose. The journal is the raw narrative layer; reports/summaries are derived from it. Path and scope come from the project profile.
+description: Daily journal (raw narrative) procedure. Use for requests like "günlüğe ekle", "gün sonu", "dün ne yapmıştık", "journal this", "what did we do yesterday". Opens YYYY-MM-DD.md in the journal directory (creating it if absent) and adds that day's work — including work done through conversation — as prose. The journal is the raw layer; reports derive from it. Path from the project profile.
 ---
 
 # Journal — Raw Narrative Layer

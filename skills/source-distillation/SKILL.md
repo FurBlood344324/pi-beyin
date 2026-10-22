@@ -1,6 +1,6 @@
 ---
 name: source-distillation
-description: Capture an external source (web doc, arXiv/paper, local PDF archive, bookmark export) and distill it into a high-quality concept note in the vault. Use for requests like "şu siteyi vault'a al", "dokümanları damıt", "makale arşivini işle", "pdf'lerden not çıkar", "bookmarklarımı damıt", "şu URL'leri tara", "distill these docs", "turn this into notes", "process the paper archive". The quality wall and the secret/privacy gate are mandatory. Raw source paths come from the project profile.
+description: Capture an external source (web doc, arXiv/paper, local PDF archive, bookmark export) and distill it into a source-linked concept note in the vault. Use for requests like "dokümanları damıt", "makale arşivini işle", "bookmarklarımı damıt", "distill these docs", "process the paper archive". The quality wall and the secret/privacy gate are mandatory. Raw source paths come from the project profile.
 ---
 
 # Source distillation (external source → vault)

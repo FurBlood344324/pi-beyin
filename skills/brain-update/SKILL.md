@@ -1,6 +1,6 @@
 ---
 name: brain-update
-description: Update an existing beyin installation to the new official version, check the version, or roll back a failed upgrade. Use for requests like "beynimi güncelle", "yeni sürüm var mı", "sürümü kontrol et", "güncelleme kaldı", "geri dön", "rollback", "update beyin", "is there a new version", "check the version", "undo the update". One tool only — beyin.py update.
+description: Update an existing beyin installation to the new official version, check the version, or roll back a failed upgrade. Use for requests like "beynimi güncelle", "yeni sürüm var mı", "geri dön", "update beyin", "rollback". One tool only — beyin.py update.
 ---
 
 # Update beyin

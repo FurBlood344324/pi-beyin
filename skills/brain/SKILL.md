@@ -1,6 +1,6 @@
 ---
 name: brain
-description: Vault memory procedure — find knowledge, write notes and tasks, record finished work with its sources, and keep companion notes current. Use for requests like "hatırla", "bunu kaydet", "not al", "hafızama bak", "görevi güncelle", "ne yapmıştık", "oturumu kapat", "beyne yaz", "remember this", "save this to memory", "note this down", "update the task", "what did we do", "close the session". Runs against the vault root that holds beyin.py. Also covers the optional Jev advisor and the consumption/auto-check preferences.
+description: Vault memory procedure — find knowledge, write notes and tasks, record finished work with its sources, and keep companion notes current. Use for requests like "hatırla", "bunu kaydet", "ne yapmıştık", "remember this", "save this to memory", "what did we do". Runs against the vault root that holds beyin.py. Also covers the Jev advisor and the consumption/auto-check preferences.
 ---
 
 # Beyin

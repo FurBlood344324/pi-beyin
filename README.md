@@ -79,6 +79,10 @@ A vault whose `beyin.py` does not accept `--harness pi` needs `tools/pi-harness-
 
 ## Project memory skills
 
+Skill descriptions carry bilingual trigger phrases (English + Turkish) on purpose: a description is a
+**routing surface**, not output — it is the text the model uses to pick the skill, so it quotes how the
+user actually speaks. Keep the lists short: every description is in the system prompt on every turn.
+
 The skills are written in English; what they produce is not. Every skill writes in the user's language
 and reuses the target file's headings — existing headings are never translated. The project-memory skills
 read `<project>/.pi/beyin-project.json` for paths and scopes; without a profile they fall back to `logs/`,
