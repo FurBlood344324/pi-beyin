@@ -72,8 +72,8 @@ Tek tek kapatmak için settings'te paket filtresi kullanılabilir:
 bun run test        # modelsiz testler (vault salt-okuma)
 bun run smoke       # üç modülün import edilebildiğini doğrular
 bun run typecheck   # tsc --noEmit
-BEYIN_LIVE=1 bun run test/run.sh   # + gerçek CommandCode çağrısı
-BEYIN_E2E=1 bun run test/run.sh    # + gerçek pi oturumu (model çağrısı yapar)
+BEYIN_LIVE=1 bash test/run.sh   # + gerçek CommandCode çağrısı
+BEYIN_E2E=1 bash test/run.sh    # + gerçek pi oturumu (model çağrısı yapar)
 ```
 
 Testler repodaki fixture'ları değiştirmez; her koşum kendi geçici dizininde çalışır.

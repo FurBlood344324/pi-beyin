@@ -32,6 +32,8 @@
   ],
   "scripts": {
     "test": "bash test/run.sh",
+    "test:live": "BEYIN_LIVE=1 bash test/run.sh",
+    "test:e2e": "BEYIN_E2E=1 bash test/run.sh",
     "smoke": "bun run test/smoke.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
