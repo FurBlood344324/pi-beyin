@@ -2,7 +2,7 @@
  * Beyin distillation — a knowledge-distillation SUGGESTION at turn/session end.
  *
  * Why: in beyin's bare form the concept/distillation work is done by the active
- * agent, not a background model (the V2 background compiler is retired). But the
+ * agent, not a background model. But the
  * "was the lesson distilled" step could be skipped silently. If a turn wrote a record
  * to the second brain without distilling under `knowledge/`, this extension injects a
  * short "offer distillation candidates" instruction at the end of the turn.

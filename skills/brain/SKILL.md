@@ -70,7 +70,7 @@ your behalf.
 
 ## Turning results into permanent knowledge
 
-The active agent continues V2's concept and link production. If a result contains reusable knowledge, first read
+The active agent produces the concept and link notes. If a result contains reusable knowledge, first read
 `knowledge/index.md` and only the relevant concept. Improve the existing note with its sources, or create
 `knowledge/concepts/<topic>.md`: short description, key points, reasoning/limits and sources. If the source is
 the user's own statement, say so explicitly. If two topics have a real relationship, create a reasoned connection
