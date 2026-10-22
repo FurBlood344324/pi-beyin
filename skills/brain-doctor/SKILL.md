@@ -64,7 +64,7 @@ Tell the user three things: the part that works, the unverified/broken part, and
 one. Give a short, concrete result instead of raw JSON. If the user's existing approval covers the safe fix, don't
 ask again for nothing.
 
-V3.1: the `updates` section inside `doctor` shows the latest version check; a network error does not prove being up
+The `updates` section inside `doctor` shows the latest version check; a network error does not prove being up
 to date. Use `beyin.py update --check --metadata-only` only for a version question. Route an update request to the
 `brain-update` skill.
 

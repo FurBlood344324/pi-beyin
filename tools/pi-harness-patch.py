@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Add "pi" as a first-class Beyin V3 harness, update-safely.
+"""Add "pi" as a first-class beyin harness, update-safely.
 
 Why this exists
 ---------------
-Beyin V3 knows the harnesses codex/claude/antigravity/hermes/opencode/omp, but not
+beyin knows the harnesses codex/claude/antigravity/hermes/opencode/omp, but not
 pi. That blocks `beyin.py receipt --harness pi` and `context --harness pi`, so pi
-work is mislabeled. Pi runs outside Beyin's own hooks, so the fix has to live here.
+work is mislabeled. pi runs outside beyin's own hooks, so the fix has to live here.
 
 How it stays update-safe
 ------------------------

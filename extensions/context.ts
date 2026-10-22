@@ -1,5 +1,5 @@
 /**
- * Beyin V3 — pi-native bridge (the pi equivalent of the beyin hook).
+ * pi-native bridge for the beyin vault (the pi equivalent of the beyin hook).
  *
  * Beyin's OMP/OpenCode/Claude/Codex hooks do not run in pi. This extension pulls
  * relevant notes from the local second brain on every user prompt and injects them

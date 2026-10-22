@@ -236,14 +236,14 @@ the applications are closed. In sparse-check or manual mode, refresh the source 
 information is needed; don't assume an old session context is current. Work started earlier may have finished;
 turning it off stops the next jobs.
 
-The default V3 engine makes no automatic call to Luna, Sonnet or any other model. The Jev auto_context feature,
+The default engine makes no automatic call to Luna, Sonnet or any other model. The Jev auto_context feature,
 which the user enables explicitly and separately, is a limited, optional remote consultation outside that rule.
 Local checks consume no tokens; the results the agent writes and the context it reads or adds count toward the
 client's usage. A character limit is not a guarantee of token count or cost. A 15-minute agent automation the
 user installed separately is not governed by this setting; examine it separately. Don't add a paid scheduler, a
 model runner or a new dependency without being asked.
 
-V3.1: the `updates` section inside `doctor` shows the latest version check; a network error does not prove being
+The `updates` section inside `doctor` shows the latest version check; a network error does not prove being
 up to date. Use `beyin.py update --check --metadata-only` only for a version question. Route an update request to
 the `brain-update` skill.
 

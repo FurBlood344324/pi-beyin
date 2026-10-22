@@ -33,7 +33,7 @@ user step.
 In the result message give the previous→new version, the verification result and any step left open. Don't share
 tokens, local user paths, personal settings dumps or raw logs.
 
-If `--metadata-only` is not recognized (a version before V3.1), fall back to the existing `update --check`. Version
+If `--metadata-only` is not recognized (older beyin), fall back to the existing `update --check`. Version
 notifications are an on-by-default daily GitHub metadata check; they post no notes. Apply an off/on request with
 `preferences --update-notifications off/on`. To silence one version use `update --dismiss X.Y.Z`. A metadata-only
 result is not proof that the package can be installed.

@@ -77,20 +77,20 @@ The extensions call `beyin.py` (read-only unless the agent runs a write command)
 A vault whose `beyin.py` does not accept `--harness pi` needs `tools/pi-harness-patch.py ensure
 --vault <vault>` (the extension does this on session start).
 
-## Relationship to beyin v3
+## Scope
 
-`pi-beyin` is the **pi-side** adapter; the vault, `beyin.py` and the canonical skill templates belong to
-beyin v3 and keep their own release cycle.
+This package is the **pi side**: extensions, skills and the harness patch. The vault and its `beyin.py`
+CLI are yours to install and update separately; this package never needs to know their version.
 
-- `tools/pi-harness-patch.py` is the only thing that touches beyin's files: it adds `pi` to the harness
-  list in two managed modules (plus three pi-specific fixes) and re-syncs the install manifest so
-  `beyin.py update` plans cleanly. **A beyin update reverts these edits**; the extension calls `ensure`
-  on session start, so they come back by themselves. `status` is read-only.
-- The skills here are **copies for pi**, not links into the vault. beyin still installs its own copies
-  under `.claude/skills/` for the other harnesses; pi does not read that directory.
-- Notifications stay in the adapter: the injected context, the receipt reminder, the distillation
-  suggestion and the `beyin_jev_*` tool descriptions ship with this package. They are written in Turkish
-  today (the author's language); anything a *skill* writes follows the user's language.
+- `tools/pi-harness-patch.py` is the only piece that touches the vault's Python: it adds `pi` to the
+  harness list in five managed modules and re-syncs the install manifest so updates plan cleanly.
+  An update of the vault reverts those edits; the extension calls `ensure` on session start, so they
+  come back by themselves. `status` is read-only.
+- The skills here are **copies for pi**, not links into the vault. Other harnesses keep their own copies
+  under `.claude/skills/`; pi does not read that directory.
+- Notifications live in the adapter: the injected context, the receipt reminder, the distillation
+  suggestion and the `beyin_jev_*` tool descriptions ship here. They are written in Turkish today (the
+  author's language); anything a *skill* writes follows the user's language.
 
 ## Project memory skills
 
