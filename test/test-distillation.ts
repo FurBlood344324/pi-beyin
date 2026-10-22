@@ -1,5 +1,5 @@
 /**
- * beyin-damitma.ts tests.
+ * beyin-distillation (extensions/distillation.ts) tests.
  * No model calls; the event flow and the conditions for an offer are verified.
  */
 import * as fs from "node:fs";
@@ -29,7 +29,7 @@ process.env.BEYIN_DEBUG = "1";
 delete process.env.BEYIN_DISABLE;
 delete process.env.BEYIN_DAMITMA;
 
-const { default: factory } = await import(extensionUrl("damitma"));
+const { default: factory } = await import(extensionUrl("distillation"));
 
 function writeCfg(cfg: any): void {
 	fs.writeFileSync(CFG, JSON.stringify(cfg));

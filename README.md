@@ -12,7 +12,7 @@ pi skills.
 | Resource | What it does |
 |---|---|
 | `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording one. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
-| `extensions/damitma.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, offers **distillation candidates** (never writes on its own). `/damitma`. |
+| `extensions/distillation.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, offers **distillation candidates** (never writes on its own). `/damitma`. |
 | `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
 | `skills/brain` | Vault memory work: find notes, record finished work with its sources, update tasks, keep companion notes current. |
 | `skills/brain-doctor` | Health check: is memory indexed, are sources synced, are skills and updates healthy. |
@@ -89,7 +89,7 @@ Disable a single extension while keeping the package:
 ```json
 {
   "packages": [
-    { "source": "npm:pi-beyin", "extensions": ["extensions/*.ts", "!extensions/damitma.ts"] }
+    { "source": "npm:pi-beyin", "extensions": ["extensions/*.ts", "!extensions/distillation.ts"] }
   ]
 }
 ```

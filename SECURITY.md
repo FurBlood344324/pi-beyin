@@ -7,7 +7,7 @@ boundaries are:
 
 | Capability | Why | Where |
 |---|---|---|
-| Run `python3 <vault>/beyin.py …` | every read and write goes through the vault's own CLI | `extensions/context.ts`, `extensions/damitma.ts` |
+| Run `python3 <vault>/beyin.py …` | every read and write goes through the vault's own CLI | `extensions/context.ts`, `extensions/distillation.ts` |
 | Run `python3 tools/pi-harness-patch.py ensure` | keeps `--harness pi` working after a vault update | `extensions/context.ts` |
 | Read vault files via `beyin.py context` | context injection | `extensions/context.ts` |
 | Network to `api.commandcode.ai` | only when Jev is enabled; only after the privacy gate | `extensions/jev.ts` |

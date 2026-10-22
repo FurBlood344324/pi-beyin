@@ -1,6 +1,6 @@
 # Test suite
 
-Tests for the three extensions in `extensions/` (`context`, `damitma`, `jev`).
+Tests for the three extensions in `extensions/` (`context`, `distillation`, `jev`).
 
 ## Running
 
@@ -22,7 +22,7 @@ bun run test-jev-scenario.ts ~/projects/example 3
 Individual tests:
 
 ```bash
-bun run test-damitma.ts
+bun run test-distillation.ts
 bun run test-context.ts
 bun run test-jev.ts
 BEYIN_LIVE=1 bun run test-jev-live.ts
@@ -36,7 +36,7 @@ Steps 1–3 of `run.sh` read a live vault; everything else is self-contained. Th
 
 | File | Covers |
 |---|---|
-| `test-damitma.ts` | Offer conditions (memory written, no `knowledge/`), suppression (vault/excluded project/aborted/cooldown), isolated hook config (`excludeProjects` + `injectionOnly.damitma`), `/damitma` |
+| `test-distillation.ts` | Offer conditions (memory written, no `knowledge/`), suppression (vault/excluded project/aborted/cooldown), isolated hook config (`excludeProjects` + `injectionOnly.damitma`), `/damitma` |
 | `test-context.ts` | Real `beyin.py context` injection, skip conditions, receipt reminder → system prompt section, Jev cache filter + fail-open |
 | `test-jev.ts` | Provider registration, JSON parsing/normalization (choice/score/bool), error paths (key/HTTP/abort), `/jev-test` |
 | `test-advisor.ts` | Advisor tools (`beyin_jev_review/answer/memory`), silent-mode gate, JSON stdin bridge (local validation errors only, no remote calls) |
@@ -55,4 +55,4 @@ Steps 1–3 of `run.sh` read a live vault; everything else is self-contained. Th
 - Jev tests load a fresh module instance via `?fresh=N`. Cache-busting requires an **absolute path**:
   Bun ignores the query string on `file://` URLs and returns the cached module (measured).
 - Tests do not write to the vault; they only call read-only `context`/`doctor`.
-- `[beyin]` / `[beyin-damitma]` / `[beyin-jev]` lines in the output are `BEYIN_DEBUG=1` diagnostics.
+- `[beyin]` / `[beyin-distillation]` / `[beyin-jev]` lines in the output are `BEYIN_DEBUG=1` diagnostics.

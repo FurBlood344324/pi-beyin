@@ -35,8 +35,8 @@ jobs:
       - name: skills
         run: bun run test/test-skills.ts
 
-      - name: damitma
-        run: bun run test/test-damitma.ts
+      - name: distillation
+        run: bun run test/test-distillation.ts
 
       - name: jev
         run: bun run test/test-jev.ts

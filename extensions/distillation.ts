@@ -50,7 +50,7 @@ const RECEIPT_RE = /(?:^|\s)beyin\.py\s+(?:receipt|note-create|task-create|task-
 const KNOWLEDGE_RE = /(^|[\\/])knowledge[\\/]/;
 
 function debug(msg: string): void {
-	if (DEBUG) process.stderr.write(`[beyin-damitma] ${msg}\n`);
+	if (DEBUG) process.stderr.write(`[beyin-distillation] ${msg}\n`);
 }
 
 interface DamitmaConfig {
@@ -230,7 +230,7 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 			entries: [
 				{
 					type: "custom_message" as const,
-					customType: "beyin-damitma",
+					customType: "beyin-distillation",
 					display: false,
 					content: instruction(config.maxCandidates),
 				},
@@ -243,7 +243,7 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 		description: LANG === "en" ? "Ask for the second-brain distillation offer now" : "İkinci beyin damıtma önerisini şimdi iste",
 		handler: async (_args, ctx: ExtensionContext) => {
 			pi.sendMessage(
-				{ customType: "beyin-damitma", display: false, content: instruction(config.maxCandidates) },
+				{ customType: "beyin-distillation", display: false, content: instruction(config.maxCandidates) },
 				{ triggerTurn: true },
 			);
 			ctx.ui.notify(LANG === "en" ? "Distillation offer requested" : "Damıtma önerisi istendi", "info");

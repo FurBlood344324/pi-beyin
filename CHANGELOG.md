@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.14
+
+- Rename `extensions/damitma.ts` → `extensions/distillation.ts` (and its test). The pi entry label
+  follows the file name, so this is the label users see.
+- Unchanged on purpose: the `/damitma` command, `BEYIN_DAMITMA*` env vars, `damitma.json` and the
+  `injectionOnly.<project>.damitma` key — those are the configuration contract, not naming.
+
 ## 0.1.13
 
 - No project-specific content in the package: the `/jev-test` self-test payload and the live-test mock
