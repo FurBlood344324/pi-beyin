@@ -1,43 +1,43 @@
 /**
- * Beyin V3 — pi-native köprü (beyin hook'unun pi eşdeğeri).
+ * Beyin V3 — pi-native bridge (the pi equivalent of the beyin hook).
  *
- * Beyin'in OMP/OpenCode/Claude/Codex hook'ları pi'de çalışmaz. Bu extension,
- * her kullanıcı isteminde yerel ikinci beyinden ilgili notları çekip bağlama
- * enjekte eder; bir turda kaynak dosya düzenlenip "receipt" yazılmadıysa bir
- * sonraki istemde kısa bir hatırlatma ekler.
+ * Beyin's OMP/OpenCode/Claude/Codex hooks do not run in pi. This extension pulls
+ * relevant notes from the local second brain on every user prompt and injects them
+ * into context; if a turn edited a source file but wrote no "receipt", it adds
+ * a short reminder on the next prompt.
  *
- * Yapılandırma (ortam değişkenleri):
- *   BEYIN_VAULT           vault yolu (varsayılan: ~/projects/beyin)
- *   BEYIN_PYTHON          python yorumlayıcısı (varsayılan: python3)
- *   BEYIN_CONTEXT_CHARS   enjekte edilecek en çok karakter (varsayılan: 4000)
- *   BEYIN_REMINDERS       "0" -> receipt hatırlatması kapalı (varsayılan açık)
- *   BEYIN_INCLUDE_VAULT   "1" -> vault içinde de enjekte et (varsayılan: atla)
- *   BEYIN_DISABLE         "1" -> extension tümüyle susar
- *   BEYIN_DEBUG           "1" -> stderr'e kısa tanılama yazar
+ * Configuration (environment variables):
+ *   BEYIN_VAULT           vault path (default: ~/projects/beyin)
+ *   BEYIN_PYTHON          python interpreter (default: python3)
+ *   BEYIN_CONTEXT_CHARS   max characters injected (default: 4000)
+ *   BEYIN_REMINDERS       "0" -> receipt reminder off (default on)
+ *   BEYIN_INCLUDE_VAULT   "1" -> also inject inside the vault (default: skip)
+ *   BEYIN_DISABLE         "1" -> extension goes fully silent
+ *   BEYIN_DEBUG           "1" -> write short diagnostics to stderr
  *
- * Jev (opsiyonel, varsayılan kapalı): ~/.config/beyin/jev.json -> { enabled, mode, minScore, maxCandidates }
- *   enabled + mode "on"    : getirilen notlar CommandCode destekli Jev classifier ile puanlanır, ilgisizler elenir
- *   enabled + mode "shadow": puanlanır ve loglanır ama sonuç değiştirilmez (ölçüm)
- *   BEYIN_JEV=0            : Jev'i bu oturumda kapatır
+ * Jev (optional, off by default): ~/.config/beyin/jev.json -> { enabled, mode, minScore, maxCandidates }
+ *   enabled + mode "on"    : retrieved notes are scored by the CommandCode-backed Jev classifier; irrelevant ones dropped
+ *   enabled + mode "shadow": scored and logged, but the result is unchanged (measurement)
+ *   BEYIN_JEV=0            : turns Jev off for this session
  *
- * Fail-open: herhangi bir hata turu bozmaz; sessizce bağlam gelmez.
+ * Fail-open: no error breaks a turn; context is simply absent.
  */
 
 import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import { homedir } from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const HOME = process.env.HOME || homedir();
 const VAULT = process.env.BEYIN_VAULT || path.join(HOME, "projects", "beyin");
 const PYTHON = process.env.BEYIN_PYTHON || "python3";
-const PATCH_SCRIPT =
-	process.env.BEYIN_PI_PATCH || path.join(HOME, ".config", "beyin", "pi-harness", "patch.py");
+const PATCH_SCRIPT = process.env.BEYIN_PI_PATCH || defaultPatchScript();
 const CONTEXT_CHARS = Number(process.env.BEYIN_CONTEXT_CHARS || 4000);
 const TIMEOUT_MS = 4500;
-// Uzak danışman çağrıları (jev-review/answer/memory) tek istekte değerlendirir; bol pay.
+// Remote advisor calls (jev-review/answer/memory) evaluate in one request; generous budget.
 const ADVISOR_TIMEOUT_MS = 30000;
 const REMINDERS = process.env.BEYIN_REMINDERS !== "0";
 const INCLUDE_VAULT = process.env.BEYIN_INCLUDE_VAULT === "1";
@@ -57,12 +57,21 @@ const WRITE_TOOLS = new Set(["edit", "write"]);
 const RECEIPT_RE = /(?:^|\s)beyin\.py\s+(?:receipt|note-create|task-create|task-update)\b/;
 const JEV_CONFIG_FILE = process.env.BEYIN_JEV_CONFIG || path.join(HOME, ".config", "beyin", "jev.json");
 const HOOK_CONFIG_FILE = process.env.BEYIN_HOOK_CONFIG || path.join(HOME, ".config", "beyin", "pi-hook.json");
-const DEFAULT_EXCLUDES = [path.join(HOME, "projects", "work")];
+const DEFAULT_EXCLUDES: string[] = [];
 const JEV_PROVIDER = "beyin-jev";
 const JEV_MODEL_ID = "jev-commandcode";
 
 function debug(msg: string): void {
 	if (DEBUG) process.stderr.write(`[beyin] ${msg}\n`);
+}
+
+/** pi-harness patch shipped with the package; overridable via env. */
+function defaultPatchScript(): string {
+	try {
+		return fileURLToPath(new URL("../tools/pi-harness-patch.py", import.meta.url));
+	} catch {
+		return path.join(HOME, ".config", "beyin", "pi-harness", "patch.py");
+	}
 }
 
 function vaultReady(): boolean {
@@ -82,10 +91,10 @@ function insideVault(cwd: string): boolean {
 	}
 }
 
-/** Beyin modu: silent = tamamen sus · inject-only = sadece bağlam enjeksiyonu+Jev · full = her şey */
+/** Beyin mode: silent = fully quiet · inject-only = context injection + Jev only · full = everything */
 type ProjectMode = "silent" | "inject-only" | "full";
 
-/** injectionOnly haritası: { "<proje yolu>": { "reminders": false } } */
+/** injectionOnly map: { "<project path>": { "reminders": false } } */
 function injectionOnlyProjects(): Map<string, { reminders: boolean }> {
 	const out = new Map<string, { reminders: boolean }>();
 	try {
@@ -104,7 +113,7 @@ function injectionOnlyProjects(): Map<string, { reminders: boolean }> {
 	return out;
 }
 
-/** cwd hangi modda? Config okunamazsa isExcluded default'una geri düşer (fail-safe). */
+/** Which mode is cwd in? Falls back to the isExcluded default if the config cannot be read (fail-safe). */
 function resolveMode(cwd: string): ProjectMode {
 	if (isExcluded(cwd)) return "silent";
 	for (const [project, opts] of injectionOnlyProjects()) {
@@ -120,7 +129,7 @@ function resolveMode(cwd: string): ProjectMode {
 	return "full";
 }
 
-/** Kendi olgun hafıza sistemi olan projeler (ör. work): beyin burada susar. */
+/** Projects with their own mature memory system (e.g. work): beyin stays quiet there. */
 function excludedProjects(): string[] {
 	try {
 		if (!fs.existsSync(HOOK_CONFIG_FILE)) return DEFAULT_EXCLUDES;
@@ -175,7 +184,7 @@ function runProcess(argv: string[], timeout = TIMEOUT_MS, cwd = VAULT): Promise<
 	});
 }
 
-/** Danışman komutları için beyin.py'yi JSON stdin ile çağır. */
+/** Call beyin.py with JSON on stdin, for advisor commands. */
 function runBeyinJson(
 	args: string[],
 	input: unknown,
@@ -205,7 +214,7 @@ function runBeyinJson(
 	});
 }
 
-/** Beyin güncellemesinden sonra "pi" harness yamasını yeniden uygula (self-heal). */
+/** Re-apply the "pi" harness patch after a beyin update (self-heal). */
 function ensurePiHarness(): void {
 	try {
 		if (!fs.existsSync(PATCH_SCRIPT)) return;
@@ -230,15 +239,16 @@ interface BeyinRecord {
 const REMOTE_SENSITIVITY = new Set(["public", "internal", "normal"]);
 
 /**
- * Python Jev `beyin_v3_jev.remote_allowed` ile birebir gizlilik kapısı: yerel-only bir
- * kayıt uzak advisor'a (CommandCode) gönderilmez. Alan yokluğu "izinli" demektir; explicit
- * değer uymuyorsa engellenir. Gizlilikte fail-closed: tipi/değeri doğrulanamayan sensitivity
- * engellenir. Yerel bağlam enjeksiyonunu etkilemez; yalnız uzak gönderimi süzer.
+ * Privacy gate identical to Python Jev `beyin_v3_jev.remote_allowed`: a local-only record
+ * is never sent to the remote advisor (CommandCode). An absent field means "allowed"; an
+ * explicit value that does not match blocks it. Fail-closed on privacy: an unverifiable
+ * sensitivity type/value is blocked. Does not affect local context injection; only filters
+ * what leaves the machine.
  */
 export function remoteSafe(record: BeyinRecord): boolean {
 	if ((record as { visibility?: unknown }).visibility === "private") return false;
 	if ("remote_allowed" in record) {
-		// Python `record.get('remote_allowed', True) is True` -> yalnız tam `true` izinli.
+		// Python `record.get('remote_allowed', True) is True` -> only exact `true` is allowed.
 		if ((record as { remote_allowed?: unknown }).remote_allowed !== true) return false;
 	}
 	if ("sensitivity" in record) {
@@ -252,22 +262,22 @@ interface JevPrefs {
 	enabled: boolean;
 	mode: "on" | "shadow";
 	/**
-	 * Topikalite barı — **skor ölçeğinde** (0..2), olasılık değil.
+	 * Topicality bar — on the **score scale** (0..2), not a probability.
 	 *
-	 * Skor sorusu 3 seviyeli ordinal: `İlgisiz=0 · Arka plan=1 · Doğrudan ilgili=2`
-	 * (Python `CRITERIA` ile aynı üç seviye). Beklenen skor = dağılımın ağırlıklı
-	 * ortalaması → doğrusal eşlemede **score ≈ 2·p** (p = olasılık).
+	 * The score question is a 3-level ordinal: `İlgisiz=0 · Arka plan=1 · Doğrudan ilgili=2`
+	 * (the same three levels as Python `CRITERIA`). Expected score = weighted mean of the
+	 * distribution -> under linear mapping **score ≈ 2·p** (p = probability).
 	 *
-	 * Kalibre Python bar'ları olasılık ölçeğinde: `gate=0.25 · keep=0.4 · rescue=0.6`
-	 * → skor karşılığı `0.5 · 0.8 · 1.2`. Ölçülen ayrım (Python kalibrasyon notu):
-	 * ilgisiz notlar ≤0.31, ilgili notlar ≥0.76 → karar sınırı p≈0.53 (skor ≈1.06).
-	 * Bu yüzden varsayılan `1` (p≈0.5) ölçülen boşluğun **tam içinde**; `keep`ten
-	 * (0.8) sıkı, `rescue`dan (1.2) gevşek. Bilerek değiştirilmedi: mevcut değer
-	 * ölçümle çelişmiyor, ve kalibre bar'lar farklı bir karar bağlamı için seçilmiş
-	 * (Python'da `keep` = dar yerel eşleşme sonrası, `rescue` = yeni kayıt).
-	 * Yeniden ölçmek istersen: skor dağılımını `relevance` sorusunun `probabilities`
-	 * alanı verir (`beyin-jev.ts` `expectedScore`) — bar değiştirmeden önce dağılımı
-	 * sakla ve karşılaştır.
+	 * Calibrated Python bars are on the probability scale: `gate=0.25 · keep=0.4 · rescue=0.6`
+	 * -> score equivalents `0.5 · 0.8 · 1.2`. Measured separation (Python calibration note):
+	 * irrelevant notes ≤0.31, relevant notes ≥0.76 -> decision boundary p≈0.53 (score ≈1.06).
+	 * So the default `1` (p≈0.5) sits **inside** the measured gap; tighter than `keep`
+	 * (0.8), looser than `rescue` (1.2). Deliberately left alone: the current value does not
+	 * contradict the measurement, and the calibrated bars were picked for a different
+	 * decision context (in Python `keep` = after a narrow local match, `rescue` = new record).
+	 * To re-measure: the score distribution comes from the `probabilities` field of the
+	 * `relevance` question (`beyin-jev.ts` `expectedScore`) — save the distribution and
+	 * compare before changing the bar.
 	 */
 	minScore: number;
 	maxCandidates: number;
@@ -301,8 +311,8 @@ const jevInflight = new Set<string>();
 const topicPrompts: string[] = [];
 const JEV_TTL_MS = 15 * 60 * 1000;
 const JEV_OVERLAP = 0.4;
-// Jev ana modelle eşzamanlı gider → gecikme ~2–3×. 10 sn ≥4 adayda yetmiyordu;
-// arka plan (non-blocking) olduğu için bol pay güvenli. (work log 0111)
+// Jev runs concurrently with the main model -> latency ~2–3x. 10 s was not enough at
+// >=4 candidates; since it is background (non-blocking), a generous budget is safe. (work log 0111)
 const JEV_TIMEOUT_MS = 30 * 1000;
 
 function sigTokens(sig: string): Set<string> {
@@ -316,7 +326,7 @@ function overlap(a: Set<string>, b: Set<string>): number {
 	return inter / (a.size + b.size - inter);
 }
 
-/** Son birkaç istemin anlamlı kelimelerinden konu imzası. */
+/** Topic signature from the significant words of the last few prompts. */
 function topicSignature(): string {
 	const text = topicPrompts.slice(-3).join(" ").toLowerCase();
 	const tokens = text.match(/[a-z0-9ğüşöçı_]{4,}/g) ?? [];
@@ -328,7 +338,7 @@ function topicSignature(): string {
 	return uniq.slice(0, 40).join(",");
 }
 
-/** Adayları Jev (CommandCode classifier) ile puanla. Arka planda çağrılır; bağlamı bloklamaz. */
+/** Score candidates with Jev (the CommandCode classifier). Called in the background; does not block context. */
 async function jevScoreRecords(
 	ctx: ExtensionContext,
 	query: string,
@@ -390,7 +400,7 @@ async function jevScoreRecords(
 	}
 }
 
-/** Eksik puanları arka planda hesapla (non-blocking); sonuçları önbelleğe yaz. */
+/** Compute missing scores in the background (non-blocking); write results to the cache. */
 function scheduleJevScoring(
 	ctx: ExtensionContext,
 	query: string,
@@ -439,12 +449,12 @@ function formatContext(records: BeyinRecord[]): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// Danışman araçları (Jev review / answer / memory triyajı)
+// Advisor tools (Jev review / answer / memory triage)
 //
-// İnce sarmalayıcı: kalibre eşikler, gizlilik kapısı ve "yazmaz/onaylamaz" sözleşmesi
-// Python yolunda (`beyin.py jev-review|jev-answer|jev-memory`) yaşar. Burada yalnız
-// o CLI çağrılır — ikinci bir sürüklenen uygulama yok (ilke: tek sahiplik).
-// Mod kapısı: `silent` projede reddeder; `inject-only` ve `full` çalışır.
+// Thin wrapper: calibrated thresholds, the privacy gate and the "never writes, never
+// approves" contract live on the Python side (`beyin.py jev-review|jev-answer|jev-memory`).
+// Only that CLI is called here — no second, drifting implementation (single ownership).
+// Mode gate: rejects in a `silent` project; `inject-only` and `full` both work.
 // ---------------------------------------------------------------------------
 
 const EVIDENCE = Type.Object(
@@ -471,7 +481,7 @@ async function advisorTool(command: string, cwd: string, project: string, payloa
 		};
 	}
 	const res = await runBeyinJson([command, "--project", project, "--file", "-"], payload);
-	// beyin.py hataları JSON olarak **stderr**'e gider (TTY yoksa); başarı stdout'a yazar.
+	// beyin.py writes errors as JSON to **stderr** (when there is no TTY); success goes to stdout.
 	const text = res.stdout.trim() || res.stderr.trim();
 	let parsed: unknown;
 	try {
@@ -592,20 +602,20 @@ export default function beyinContext(pi: ExtensionAPI) {
 		return;
 	}
 
-	// Danışman araçları (salt-okuma; mod kapısı advisorTool içinde uygulanır).
+	// Advisor tools (read-only; the mode gate is enforced inside advisorTool).
 	pi.registerTool(memoryTool);
 	pi.registerTool(reviewTool);
 	pi.registerTool(answerTool);
 
-	// Bu oturumdaki önceki turun durumu.
+	// State of the previous turn in this session.
 	let prevEdited = process.env.BEYIN_FORCE_REMINDER === "1";
 	let prevRecorded = false;
 
 	pi.on("session_start", async (_event, ctx) => {
 		if (ctx.mode === "tui") ctx.ui.notify("İkinci beyin bağlamı etkin", "info");
-		// Güncellemeden sonra "pi" harness yamasını tazele (idempotent).
+		// Refresh the "pi" harness patch after an update (idempotent).
 		ensurePiHarness();
-		// İndeksi arka planda bir kez tazele (bloklamadan).
+		// Refresh the index once in the background (non-blocking).
 		void runBeyin(["sync"], 20000).then((r) => debug(`sync code=${r.code}`));
 	});
 
@@ -629,12 +639,12 @@ export default function beyinContext(pi: ExtensionAPI) {
 			return;
 		}
 
-		// `before_agent_start` bir birleşim: `prompt` yalnız kullanıcı kaynaklı olayda var.
+		// `before_agent_start` is a union: `prompt` only exists on user-originated events.
 		const prompt = ("prompt" in event ? event.prompt : "").trim();
 		if (prompt.length < 12) return;
 		if (SYNTHETIC_PREFIXES.some((p) => prompt.startsWith(p))) return;
 
-		// Önceki turdan receipt hatırlatması (yalnız full mod); sonra bayrakları yeni tur için sıfırla.
+		// Receipt reminder from the previous turn (full mode only); then reset the flags for the new turn.
 		let reminder: string | undefined;
 		if (REMINDERS && mode === "full" && prevEdited && !prevRecorded) {
 			reminder =
@@ -664,7 +674,7 @@ export default function beyinContext(pi: ExtensionAPI) {
 				const parsed = JSON.parse(res.stdout) as { records?: BeyinRecord[] };
 				const allRecords = Array.isArray(parsed.records) ? parsed.records : [];
 				let records = allRecords;
-				// Jev: SENKRON DEĞİL. Önbellekteki puanları anında uygula, eksikleri arka planda puanla.
+				// Jev is NOT synchronous: apply cached scores immediately, score the rest in the background.
 				const prefs = jevPrefs();
 				if (process.env.BEYIN_JEV !== "0" && prefs.enabled && allRecords.length > 0) {
 					topicPrompts.push(query);
@@ -678,7 +688,7 @@ export default function beyinContext(pi: ExtensionAPI) {
 						records = allRecords.filter((r) => {
 							const src = typeof r.source === "string" ? r.source : "";
 							const c = src ? jevScores.get(src) : undefined;
-							if (!c || now - c.at > JEV_TTL_MS || !applies(c)) return true; // puan yok/bayat -> dahil et (fail-open)
+							if (!c || now - c.at > JEV_TTL_MS || !applies(c)) return true; // no/stale score -> keep it (fail-open)
 							return c.score >= prefs.minScore;
 						});
 						if (records.length !== allRecords.length) debug(`jev (önbellek): ${records.length}/${allRecords.length} kaldı`);
@@ -691,7 +701,7 @@ export default function beyinContext(pi: ExtensionAPI) {
 			}
 		}
 
-		// Hatırlatma bir talimattır: sistem prompt'una koy (veriden daha güçlü etki eder).
+		// The reminder is an instruction: put it in the system prompt (it acts more strongly than data).
 		if (reminder && event.systemPromptOptions?.sections) {
 			event.systemPromptOptions.sections.beyin_kayit = reminder;
 			debug(`reminder -> sistem prompt bölümü (system'de=${event.systemPrompt?.includes("kayıt gerekli") ?? false})`);

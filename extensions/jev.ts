@@ -1,27 +1,29 @@
 /**
- * Beyin Jev — pi-native, CommandCode destekli classifier.
+ * Beyin Jev — pi-native classifier backed by CommandCode.
  *
- * Jev, CommandCode'un **karar modeli** `typesafe/jev` (TypeSafe Jev, CommandCode'dan sunulur).
- * Sohbet modeli DEĞİL: `state` + tipli sorular (noul/choice/score) alır, **olasılık** döndürür.
- * Uç nokta: CommandCode `provider/v1/systemone`. `/model`'de görünmez; headless/provider API.
+ * Jev is CommandCode's **decision model** `typesafe/jev` (TypeSafe Jev, served by CommandCode).
+ * NOT a chat model: it takes `state` + typed questions (noul/choice/score) and returns
+ * **probabilities**. Endpoint: CommandCode `provider/v1/systemone`. It is invisible in
+ * `/model`; headless/provider API only.
  *
- * - Yerel sunucu yok, protokol köprüsü yok.
- * - `ctx.modelRegistry.findOfType("classifier", "beyin-jev", "jev-commandcode")`
- *   ve `ctx.modelRegistry.classify(model, { state, questions })` ile kullanılır.
- * - `/jev-test` komutu hızlı bir deneme yapar.
+ * - No local server, no protocol bridge.
+ * - Used via `ctx.modelRegistry.findOfType("classifier", "beyin-jev", "jev-commandcode")`
+ *   and `ctx.modelRegistry.classify(model, { state, questions })`.
+ * - The `/jev-test` command does a quick trial run.
  *
- * Beyin güncellemelerinden ETKİLENMEZ: bu dosya ~/.pi/agent/extensions/ altında, vault dışındadır.
+ * UNAFFECTED by beyin updates: this file ships with the pi-beyin package, outside the vault.
  *
- * Anahtar çözümü (ilk bulunan kazanır):
- *   1) pi model registry -> "command-code" sağlayıcısının anahtarı (standart; auth.json'a dokunmaz)
- *   2) BEYIN_JEV_API_KEY / CMD_API_KEY / COMMAND_CODE_API_KEY ortam değişkeni
- *   3) ~/.config/beyin/jev-commandcode.env  (satır: CMD_API_KEY=...)
+ * Key resolution (first hit wins):
+ *   1) pi model registry -> "command-code" provider key (standard; does not touch auth.json)
+ *   2) BEYIN_JEV_API_KEY / CMD_API_KEY / COMMAND_CODE_API_KEY env var
+ *   3) ~/.config/beyin/jev-commandcode.env  (line: CMD_API_KEY=...)
  *
- * Yapılandırma: ~/.config/beyin/jev.json  { enabled, mode, model, minScore }
- *   BEYIN_JEV_MODEL ortam değişkeni modeli geçersiz kılar. Varsayılan model: `typesafe/jev`.
+ * Configuration: ~/.config/beyin/jev.json  { enabled, mode, model, minScore }
+ *   BEYIN_JEV_MODEL env var overrides the model. Default model: `typesafe/jev`.
  *
- * NOT: CommandCode/Cloudflare `Python-urllib` UA'sını 403 (1010) ile engeller; bu yüzden
- * `User-Agent: openai-node/4.0.0` şart. `globalThis.fetch` kullanılmalı (pi sarmalayıcısı çalışmaz).
+ * NOTE: CommandCode/Cloudflare blocks the `Python-urllib` UA with 403 (1010); that is why
+ * `User-Agent: openai-node/4.0.0` is required. `globalThis.fetch` must be used (the pi
+ * wrapper does not work).
  */
 
 import * as fs from "node:fs";
@@ -39,7 +41,7 @@ const KEY_FILE = path.join(HOME, ".config", "beyin", "jev-commandcode.env");
 const CONFIG_FILE = path.join(HOME, ".config", "beyin", "jev.json");
 const DEBUG = process.env.BEYIN_DEBUG === "1";
 
-// pi'nin kimlik API'sini kullanmak için en son oturum bağlamı (auth.json'a doğrudan dokunmadan).
+// Latest session context, needed to use pi's auth API (without touching auth.json directly).
 let latestContext: ExtensionContext | undefined;
 
 function debug(msg: string): void {
@@ -99,8 +101,8 @@ function resolveKey(): string | undefined {
 }
 
 /**
- * Standart yol: pi'nin model registry'sinden "command-code" sağlayıcısının anahtarını iste.
- * Böylece extension auth.json'u kendisi okumaz; kimlik çözümü pi'ye aittir.
+ * Standard path: ask pi's model registry for the "command-code" provider key.
+ * That way the extension never reads auth.json itself; credential resolution belongs to pi.
  */
 async function resolveApiKey(): Promise<string | undefined> {
 	if (latestContext) {
@@ -120,7 +122,7 @@ function clamp01(v: unknown, fallback = 0.5): number {
 	return Math.max(0, Math.min(1, n));
 }
 
-/** Beklenen skor = olasılık dağılımının ağırlıklı ortalaması (native `score` yoksa yedek). */
+/** Expected score = weighted mean of the probability distribution (fallback when there is no native `score`). */
 function expectedScore(distribution: unknown): number {
 	if (!distribution || typeof distribution !== "object") return NaN;
 	let sum = 0;
@@ -137,8 +139,8 @@ function expectedScore(distribution: unknown): number {
 }
 
 /**
- * Bizim soru tiplerimizi native systemone tiplerine çevir: `bool` -> `noul`; `score`/`choice` aynı.
- * `criteria` yalnız score/choice için geçer (noul yes/no).
+ * Map our question types to native systemone types: `bool` -> `noul`; `score`/`choice` unchanged.
+ * `criteria` only applies to score/choice (noul is yes/no).
  */
 function toNativeQuestions(questions: Record<string, any>): Record<string, any> {
 	const out: Record<string, any> = {};
@@ -157,7 +159,7 @@ function toNativeQuestions(questions: Record<string, any>): Record<string, any> 
 	return out;
 }
 
-/** Native systemone yanıtını bizim sözleşmeye çevir (`noul` -> `bool`; score/choice normalize). */
+/** Map a native systemone response back to our contract (`noul` -> `bool`; score/choice normalized). */
 function normalizeNativeAnswers(questions: Record<string, any>, raw: any): Record<string, any> {
 	const answers: Record<string, any> = {};
 	for (const [qid, q] of Object.entries(questions)) {

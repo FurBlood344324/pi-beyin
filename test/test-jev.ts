@@ -1,7 +1,7 @@
 /**
- * beyin-jev.ts testleri.
- * CommandCode `provider/v1/systemone` (typesafe/jev) mock'lanır; native soru/yanıt dönüşümü
- * ve hata yolları doğrulanır.
+ * beyin-jev.ts tests.
+ * CommandCode `provider/v1/systemone` (typesafe/jev) is mocked; native question/answer conversion
+ * and the error paths are verified.
  */
 import * as fs from "node:fs";
 import { MockPi, check, section, summary } from "./harness.ts";
@@ -88,7 +88,7 @@ section("native systemone dönüşümü ve normalizasyon");
 }
 {
 	await setKey("test-key");
-	// `score` alanı yoksa olasılıklardan beklenen değer türetilir
+	// Without a `score` field, the expected value is derived from the probabilities
 	mockFetch({ answers: { q_score: { type: "score", probabilities: { "0": 0.1, "1": 0.2, "2": 0.7 } } } });
 	const r = await classify(model, { state: {}, questions: { q_score: questions.q_score } }, {});
 	check("score yoksa olasılıklardan türetildi (~1.6)", Math.abs((r.answers.q_score?.score ?? 0) - 1.6) < 1e-6, r.answers.q_score);

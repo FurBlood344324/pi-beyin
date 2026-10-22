@@ -1,7 +1,7 @@
 /**
- * Beyin pi-native extension testleri için ortak harness.
- * pi API'sini taklit eder; uzantılar bu mock üzerinden sürülür.
- * Gerçek beyin.py komutları ve (opsiyonel) gerçek CommandCode çağrısı kullanılır.
+ * Shared harness for the beyin pi-native extension tests.
+ * Mocks the pi API; extensions are driven through this mock.
+ * Uses real beyin.py commands and (optionally) a real CommandCode call.
  */
 
 export type Handler = (event: any, ctx: any) => any;
@@ -73,7 +73,7 @@ export function makeCtx(overrides: any = {}): { ctx: any; notes: Notify[]; class
 	return { ctx, notes, classifyCalls };
 }
 
-// ---- assert yardımcıları ----
+// ---- assert helpers ----
 let pass = 0;
 let fail = 0;
 const failures: string[] = [];

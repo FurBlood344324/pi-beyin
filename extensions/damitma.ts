@@ -1,34 +1,34 @@
 /**
- * Beyin damıtma — tur/oturum sonunda knowledge damıtma ÖNERİSİ.
+ * Beyin distillation — a knowledge-distillation SUGGESTION at turn/session end.
  *
- * Neden: İkinci beynin saf halinde kavram/damıtma işini arka plan modeli değil,
- * aktif ajan yapar (V2 arka plan derleyicisi emekli). Ama "öğrenim damıtıldı mı"
- * adımı sessizce kaçabiliyordu. Bu extension, bir turda ikinci beyne kayıt
- * düşüldüğü halde `knowledge/` altına damıtılmadıysa, tur sonunda ajana kısa bir
- * "damıtma adayı sun" talimatı enjekte eder.
+ * Why: in beyin's bare form the concept/distillation work is done by the active
+ * agent, not a background model (the V2 background compiler is retired). But the
+ * "was the lesson distilled" step could be skipped silently. If a turn wrote a record
+ * to the second brain without distilling under `knowledge/`, this extension injects a
+ * short "offer distillation candidates" instruction at the end of the turn.
  *
- * Önemli: Otomatik YAZMAZ. Yalnızca ajana "kullanıcıya öneri sun, onay iste"
- * der. Asıl knowledge notunu kullanıcı onayından sonra ajan yazar. Böylece
- * "öneri → kullanıcı onayı → yazım" ilkesi korunur; vault bir çıkarım
- * fabrikasına dönmez.
+ * Important: it does NOT write automatically. It only tells the agent to "offer
+ * candidates to the user and ask for approval". The actual knowledge note is written
+ * by the agent after user approval. That keeps the "suggestion -> user approval ->
+ * write" principle intact; the vault does not become an inference factory.
  *
- * Ne zaman tetikler (hepsi birlikte):
- *   - tur "completed" bitti ve sürdürülebilir (canContinue)
- *   - turda kayıt düşüldü (beyin.py receipt/note-create/task-create), vault'a yazım oldu **veya
- *     `beyin_jev_*` danışmanı çağrıldı** (danışmana sorup damıtmayı atlamak tipik kaçak)
- *   - turda `knowledge/` altına YAZILMADI
- *   - cooldown geçti (varsayılan 30 dk) — her turda rahatsız etmesin
+ * When it triggers (all together):
+ *   - the turn ended "completed" and is continuable (canContinue)
+ *   - the turn wrote a record (beyin.py receipt/note-create/task-create), wrote to the vault, **or
+ *     called the `beyin_jev_*` advisor** (asking the advisor and skipping distillation is the typical leak)
+ *   - nothing was WRITTEN under `knowledge/` during the turn
+ *   - the cooldown elapsed (default 30 min) — so it does not nag every turn
  *
- * Proje istisnası: `pi-hook.json` → `injectionOnly.<proje>.damitma: true` verilirse, o projede
- * reminder'lar kapalı kalsa bile **damıtma önerisi açılır** (work gibi kendi kaydını tutan projelerde
- * "sessizlik" yüzünden damıtımın tamamen kaybolmasını engeller).
+ * Project exception: setting `pi-hook.json` -> `injectionOnly.<project>.damitma: true` turns the
+ * distillation suggestion on in that project even with reminders off (keeps distillation from
+ * disappearing entirely in self-tracking projects such as work).
  *
- * Yapılandırma: ~/.config/beyin/damitma.json
+ * Configuration: ~/.config/beyin/damitma.json
  *   { "enabled": true, "cooldownMinutes": 30, "maxCandidates": 3 }
- * Ortam: BEYIN_DAMITMA="0" -> kapat; BEYIN_DISABLE="1" -> tümüyle sus;
- *        BEYIN_DEBUG="1" -> stderr tanılama; BEYIN_VAULT -> vault yolu.
+ * Env: BEYIN_DAMITMA="0" -> off; BEYIN_DISABLE="1" -> fully silent;
+ *      BEYIN_DEBUG="1" -> stderr diagnostics; BEYIN_VAULT -> vault path.
  *
- * Vault DIŞINDA yaşar; beyin güncellemeleri dokunmaz.
+ * Lives OUTSIDE the vault; beyin updates do not touch it.
  */
 
 import * as fs from "node:fs";
@@ -40,7 +40,7 @@ const HOME = process.env.HOME || homedir();
 const VAULT = process.env.BEYIN_VAULT || path.join(HOME, "projects", "beyin");
 const CONFIG_FILE = process.env.BEYIN_DAMITMA_CONFIG || path.join(HOME, ".config", "beyin", "damitma.json");
 const HOOK_CONFIG_FILE = process.env.BEYIN_HOOK_CONFIG || path.join(HOME, ".config", "beyin", "pi-hook.json");
-const DEFAULT_EXCLUDES = [path.join(HOME, "projects", "work")];
+const DEFAULT_EXCLUDES: string[] = [];
 const DISABLED = process.env.BEYIN_DAMITMA === "0" || process.env.BEYIN_DISABLE === "1";
 const DEBUG = process.env.BEYIN_DEBUG === "1";
 
@@ -73,7 +73,7 @@ function loadConfig(): DamitmaConfig {
 	}
 }
 
-/** Kendi olgun hafıza sistemi olan projeler (ör. work): damıtma önerisi de sussun. */
+/** Projects with their own mature memory system (e.g. work): the distillation suggestion stays quiet too. */
 function excludedProjects(): string[] {
 	try {
 		if (!fs.existsSync(HOOK_CONFIG_FILE)) return DEFAULT_EXCLUDES;
@@ -97,7 +97,7 @@ function isExcluded(cwd: string): boolean {
 			/* ignore */
 		}
 	}
-	// injectionOnly projelerde damıtma da sussun (kendi kayıt sistemi olan projelerde çift mekanizma olur).
+	// Stay quiet in injectionOnly projects too (a second mechanism would duplicate the project's own tracking system).
 	try {
 		const c = JSON.parse(fs.readFileSync(HOOK_CONFIG_FILE, "utf8")) as Record<string, unknown>;
 		if (c.injectionOnly && typeof c.injectionOnly === "object" && !Array.isArray(c.injectionOnly)) {
@@ -106,13 +106,13 @@ function isExcluded(cwd: string): boolean {
 				const rel = path.relative(project, cwd);
 				if (rel !== "" && (rel.startsWith("..") || path.isAbsolute(rel))) continue;
 				const opts = (c.injectionOnly as Record<string, unknown>)[project];
-				// Proje bazlı istisna: reminders kapalı kalsa da damıtma açık olabilir.
+				// Per-project exception: distillation may stay on even with reminders off.
 				if (opts && typeof opts === "object" && (opts as Record<string, unknown>).damitma === true) continue;
 				return true;
 			}
 		}
 	} catch {
-		/* config yok → boş geç */
+		/* no config -> nothing to do */
 	}
 	return false;
 }
@@ -146,10 +146,10 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 	}
 	const config = loadConfig();
 
-	// Bir tur (agent run) boyunca biriken sinyaller.
+	// Signals accumulated during one turn (agent run).
 	let receiptWritten = false; // beyin.py receipt/note-create/task-create
-	let vaultWrite = false; // vault içine edit/write
-	let knowledgeWritten = false; // knowledge/ altına yazım
+	let vaultWrite = false; // edit/write inside the vault
+	let knowledgeWritten = false; // write under knowledge/
 	let lastOfferAt = 0;
 
 	function resetTurn(): void {
@@ -164,7 +164,7 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", () => {
-		// Önceki run settle'a ulaşmadan bitmişse (abort) sızan sinyalleri temizle.
+		// If the previous run ended before reaching settle (abort), clear the leaked signals.
 		resetTurn();
 	});
 
@@ -184,8 +184,8 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 			if (KNOWLEDGE_RE.test(cmd)) knowledgeWritten = true;
 			return;
 		}
-		// Jev danışmanı çağrıldıysa "hafızaya dokunuldu" say: danışmana sorup damıtmayı
-		// tamamen atlamak en tipik kaçak (work gibi reminder'sız projelerde tek sinyal bu).
+		// Count a Jev advisor call as "memory was touched": asking the advisor and then skipping
+		// distillation entirely is the typical leak (in reminder-less projects like work it is the only signal).
 		if (event.toolName.startsWith("beyin_jev_")) receiptWritten = true;
 	});
 
@@ -196,7 +196,7 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 
 		if (!config.enabled) return;
 		if (event.outcome !== "completed") return;
-		// pi bu bayrağı olayın kendisinde değil, `context` altında veriyor (BoundaryState).
+		// pi passes this flag under `context`, not on the event itself (BoundaryState).
 		if (!event.context.canContinue) return;
 		if (!hadMemory || hadKnowledge) return;
 		if (isExcluded(ctx.cwd)) {
@@ -224,7 +224,7 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 		};
 	});
 
-	// Elle tetik: /damitma — aynı öneriyi hemen ister.
+	// Manual trigger: /damitma — asks for the same suggestion right now.
 	pi.registerCommand("damitma", {
 		description: "İkinci beyin damıtma önerisini şimdi iste",
 		handler: async (_args, ctx: ExtensionContext) => {

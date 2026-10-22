@@ -1,21 +1,21 @@
 #!/usr/bin/env bun
 /**
- * Jev senaryo testi — VERİLEN dizinde gerçek pi oturumu, çok turlu.
+ * Jev scenario test — a real multi-turn pi session in the GIVEN directory.
  *
- * Amaç: o dizinde (injectionOnly ya da full) beyin bağlam enjeksiyonunun VE
- * Jev arka plan puanlamasının GERÇEKTEN tamamlandığını doğrulamak. Özellikle
- * tur-içi arka plan classify'ın timeout/abort ile sessizce ölüp ölmediğini
- * yakalar (unit testler bunu kapsamaz; Jev önbelleği süreç-içidir).
+ * Goal: verify that beyin context injection AND Jev background scoring actually
+ * COMPLETE in that directory (injectionOnly or full). In particular it catches an
+ * in-turn background classify that dies silently on timeout/abort (unit tests do not
+ * cover that; the Jev cache is process-local).
  *
- * Kullanım:
- *   bun run test-jev-scenario.ts <dizin> [tur]
- *   BEYIN_SCENE_DIR=<dizin> bun run test-jev-scenario.ts
+ * Usage:
+ *   bun run test-jev-scenario.ts <dir> [turns]
+ *   BEYIN_SCENE_DIR=<dir> bun run test-jev-scenario.ts
  *
- * Ortam:
- *   BEYIN_SCENE_MODEL   (varsayılan: command-code/deepseek/deepseek-v4.1-flash-fast)
- *   BEYIN_SCENE_QUERY   (varsayılan: work konusu — vault'tan kayıt çeken bir istem)
- *   BEYIN_JEV_CONFIG    jev.json yolu (kapalıysa Jev kontrolü atlanır)
- *   BEYIN_SCENE_WAIT_MS arka plan puanlaması için bekleme (varsayılan: 12000)
+ * Env:
+ *   BEYIN_SCENE_MODEL   (default: command-code/deepseek/deepseek-v4.1-flash-fast)
+ *   BEYIN_SCENE_QUERY   (default: a work topic — a prompt that pulls records from the vault)
+ *   BEYIN_JEV_CONFIG    path to jev.json (if disabled, the Jev check is skipped)
+ *   BEYIN_SCENE_WAIT_MS wait for background scoring (default: 12000)
  */
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
@@ -33,19 +33,19 @@ const MODEL = process.env.BEYIN_SCENE_MODEL || "command-code/deepseek/deepseek-v
 const QUERY = process.env.BEYIN_SCENE_QUERY || "hand-seg segmentation U-Net augmentation mosaic low-light teorisi";
 const WAIT_MS = Number(process.env.BEYIN_SCENE_WAIT_MS || 30000);
 
-// Jev yapılandırması (kapalıysa puanlama beklenmez)
+// Jev configuration (if off, no scoring is expected)
 const JEV_FILE = process.env.BEYIN_JEV_CONFIG || path.join(os.homedir(), ".config", "beyin", "jev.json");
 let jevEnabled = false;
 try {
 	const c = JSON.parse(fs.readFileSync(JEV_FILE, "utf8"));
 	jevEnabled = c.enabled === true && process.env.BEYIN_JEV !== "0";
 } catch {
-	/* yok/bozuk -> kapalı say */
+	/* missing/broken -> treat as off */
 }
 
 console.log(`# Jev senaryo testi\n- dizin: ${DIR}\n- tur: ${TURNS}\n- model: ${MODEL}\n- Jev: ${jevEnabled ? "açık" : "kapalı (puanlama kontrolü atlanır)"}`);
 
-// --- pi RPC süreci ---
+// --- pi RPC process ---
 const child = spawn("pi", ["--mode", "rpc", "--no-session", "--no-tools", "--model", MODEL], {
 	cwd: DIR,
 	env: { ...process.env, BEYIN_DEBUG: "1" },
@@ -73,7 +73,7 @@ feed(child.stdout, stdoutLines, (line) => {
 	try {
 		if (JSON.parse(line).type === "agent_settled") settleWaiters.shift()?.();
 	} catch {
-		/* JSON değil */
+		/* not JSON */
 	}
 });
 feed(child.stderr, stderrLines);
@@ -93,7 +93,7 @@ try {
 	for (let turn = 1; turn <= TURNS; turn++) {
 		send(`p${turn}`, QUERY);
 		await waitSettled();
-		// arka plan Jev puanlaması non-blocking: tamamlanmasını bekle (sabit sleep değil).
+		// background Jev scoring is non-blocking: wait for it to finish (not a fixed sleep).
 		if (turn < TURNS) {
 			const deadline = Date.now() + WAIT_MS;
 			while (Date.now() < deadline) {
@@ -101,7 +101,7 @@ try {
 				if (done || !jevEnabled) break;
 				await new Promise((r) => setTimeout(r, 300));
 			}
-			await new Promise((r) => setTimeout(r, 500)); // sonuç işlenmesine pay
+			await new Promise((r) => setTimeout(r, 500)); // slack for result processing
 		}
 	}
 } catch (err) {

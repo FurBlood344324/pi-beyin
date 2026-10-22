@@ -1,6 +1,6 @@
 /**
- * beyin-jev.ts CANLI testi — gerçek CommandCode API'si.
- * Yalnızca BEYIN_LIVE=1 iken çalışır; küçük ve ucuz tek bir çağrı yapar.
+ * beyin-jev.ts LIVE test — real CommandCode API.
+ * Only runs with BEYIN_LIVE=1; makes one small, cheap call.
  */
 import { readFileSync } from "node:fs";
 import * as os from "node:os";
@@ -20,7 +20,7 @@ if (!key) {
 	process.exit(1);
 }
 
-// İzole HOME: gerçek `~/.config/beyin` anahtar/config dosyaları testi etkilemesin.
+// Isolated HOME so real `~/.config/beyin` key/config files do not affect the test.
 process.env.HOME = tmpDir("pi-beyin-home-");
 process.env.BEYIN_DEBUG = "1";
 

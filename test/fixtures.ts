@@ -1,9 +1,9 @@
 /**
- * Test yardımcıları: geçici dizin, fixture kopyası ve extension yolu.
+ * Test helpers: temp directory, fixture copy and extension path.
  *
- * Testler repodaki fixture dosyalarını **değiştirmez**; her koşum kendi geçici
- * dizininde çalışır. Böylece testler kullanıcının `~/.config/beyin` durumuna ve
- * repo çalışma ağacına bağımlı olmaz.
+ * Tests do NOT modify the repo's fixture files; every run uses its own temp
+ * directory. That keeps tests independent of the user's `~/.config/beyin` state
+ * and of the repo working tree.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -16,10 +16,10 @@ export function tmpDir(prefix = "pi-beyin-test-"): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-/** Test edilecek extension dosyası; `query` ile Bun modül önbelleği tazelenir.
+/** Extension file under test; `query` busts Bun's module cache.
  *
- * Dikkat: mutlak yol kullanılır — `file://` URL'lerinde Bun sorgu dizesini yok sayar
- * ve `?fresh=` cache-bust sessizce çalışmaz (ölçüldü: aynı modül örneği döner).
+ * Note: an absolute path is used — Bun ignores the query string on `file://` URLs,
+ * so `?fresh=` cache-busting silently does nothing (measured: the same module instance comes back).
  */
 export function extensionUrl(name: "context" | "damitma" | "jev", query = ""): string {
 	const file = path.join(HERE, "..", "extensions", `${name}.ts`);
