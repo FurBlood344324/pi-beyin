@@ -5,6 +5,8 @@ description: System maintenance / garbage-collection PROPOSAL procedure. Use for
 
 # Maintenance — Garbage Collection PROPOSAL (runs on approval)
 
+Language: write in the user's language and reuse the target file's headings — see `../_shared/project-profile.md` (Language).
+
 ## Paths
 `<project root>/.pi/beyin-project.json` → `logs`, `log_index`, `state`, `progress`, `journal`, `scopes`,
 `close_steps` (idempotent/derived commands run at close — see `../_shared/project-profile.md`).

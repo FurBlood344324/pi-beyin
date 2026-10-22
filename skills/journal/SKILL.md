@@ -5,9 +5,12 @@ description: Daily journal (raw narrative) recording procedure. Use for requests
 
 # Journal — Raw Narrative Layer
 
+Language: write in the user's language and reuse the target file's headings — see `../_shared/project-profile.md` (Language).
+
 ## Paths (from the project profile)
 `<project root>/.pi/beyin-project.json` → `journal` (default `journal/`), `logs`, `state`, `progress`,
-`scopes`, `report_dir`. No profile → journal in `journal/`, template `journal/_template.md`.
+`scopes`, `report_dir`. No profile → journal in `journal/`, template `journal/_template.md` (or whatever template file the
+project already uses, e.g. `_sablon.md`).
 File: `<journal>/YYYY-MM-DD.md` (one file per day). Schema: `../_shared/project-profile.md`.
 
 ## Purpose

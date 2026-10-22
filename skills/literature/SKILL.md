@@ -5,6 +5,8 @@ description: Literature/paper reading-task assignment and note-taking procedure.
 
 # Literature — Task Assignment and Note-Taking
 
+Language: write in the user's language and reuse the target file's headings — see `../_shared/project-profile.md` (Language).
+
 ## Paths (from the project profile)
 `<project root>/.pi/beyin-project.json` → `literature` (default `literature/`).
 Plan: `<literature>/plan.md` · Notes: `<literature>/NN-topic.md` · Template: `<literature>/_note-template.md`.

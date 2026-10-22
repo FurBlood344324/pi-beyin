@@ -12,6 +12,7 @@ same skill writes into each project's own directories.
   "log_index": "logs/index.md",
   "journal": "journal",
   "literature": "literature",
+  "sources": "sources",
   "state": "STATE.md",
   "progress": "progress.md",
   "report_dir": "reports",
@@ -31,6 +32,7 @@ same skill writes into each project's own directories.
 | `log_index` | – | Index file |
 | `journal` | – | Journal directory (default `journal/`) |
 | `literature` | – | Paper notes (default `literature/`) |
+| `sources` | – | Raw external captures for `source-distillation` (default `sources/`) |
 | `state` | – | Live state file |
 | `progress` | – | Roadmap file |
 | `report_dir` | – | Derived report directory |
@@ -38,6 +40,12 @@ same skill writes into each project's own directories.
 | `close_steps` | – | **Idempotent, derived-only** shell commands run at close (see below) |
 | `secret_dirs` | – | Never read, never copied |
 | `hardware` | – | Hardware note (referenced in records) |
+
+## Language
+These skills are written in English; what they produce is not. Write notes, logs, journal entries,
+cards and proposals **in the language of the user and of the target file**, and reuse the headings and
+section names that file already uses. Never translate existing headings. A new file follows the
+language of its directory (the user's language when the directory is new).
 
 ## Rules
 - Paths are written **relative to the project root** (absolute values also work).

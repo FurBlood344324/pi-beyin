@@ -5,6 +5,8 @@ description: Experiment and decision record standard (project memory). Use for r
 
 # Experiment Record — Experiment and Decision Log
 
+Language: write in the user's language and reuse the target file's headings — see `../_shared/project-profile.md` (Language).
+
 ## 0) Read the project profile
 First read `<project root>/.pi/beyin-project.json`. Fields:
 
@@ -59,6 +61,9 @@ You may load and apply this skill without the user saying "record":
 5. One-line summary to the user: number, goal, main result, decision.
 
 ## {NNNN}-{title}.md template
+
+The headings below are defaults for a **new** log. If the directory's existing logs use other
+headings (for example Turkish `## Sonuçlar`), copy those instead — one directory, one style.
 ```markdown
 # {NNNN} — {short title}
 - **Date:** YYYY-MM-DD
