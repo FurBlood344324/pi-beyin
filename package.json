@@ -1,6 +1,6 @@
 {
   "name": "pi-beyin",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "pi-native bridge for the beyin second brain: context injection, distillation reminders, and Jev advisor tools.",
   "keywords": [
     "pi-package",
