@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.16
+
+- `/damitma` → `/distillation`. No Turkish command name is left; the old one is not aliased.
+- Distillation is applied **automatically** outside the vault: the agent runs `beyin.py sync`, writes or
+  updates the knowledge note, adds it to the receipt refs and syncs again, without asking for approval.
+  Inside the vault the approval flow stays. `BEYIN_DISTILLATION_MODE=offer` restores it everywhere.
+- Debug messages in this extension are English.
+
 ## 0.1.15
 
 - Configuration names are English: `distillation.json`, `injectionOnly.<project>.distillation`,

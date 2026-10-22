@@ -12,7 +12,7 @@ pi skills.
 | Resource | What it does |
 |---|---|
 | `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording one. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
-| `extensions/distillation.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, offers **distillation candidates** (never writes on its own). `/damitma`. |
+| `extensions/distillation.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, makes the agent run `beyin.py sync` and write/update the knowledge note **automatically** when you are working outside the vault; inside the vault it stays a suggestion. `/distillation`. |
 | `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
 | `skills/brain` | Vault memory work: find notes, record finished work with its sources, update tasks, keep companion notes current. |
 | `skills/brain-doctor` | Health check: is memory indexed, are sources synced, are skills and updates healthy. |
@@ -20,6 +20,16 @@ pi skills.
 | `skills/source-distillation` | External source (web, paper, PDF archive, bookmarks) → one source-linked concept note. |
 | `skills/experiment-record`, `journal`, `literature`, `maintenance` | Project-memory procedures driven by `<project>/.pi/beyin-project.json` (see [`skills/_shared/project-profile.md`](skills/_shared/project-profile.md)). |
 | `tools/pi-harness-patch.py` | Makes a beyin vault treat `pi` as a first-class harness (`receipt --harness pi`). Idempotent; the extension re-applies it after a vault update. |
+
+### Distillation: automatic outside the vault
+
+A turn that wrote to the vault but distilled nothing into `knowledge/` gets a follow-up instruction:
+
+- **Outside the vault** (a project whose lessons diverge from it): the agent runs `beyin.py sync`,
+  writes or updates the knowledge note with `beyin.py note-create`, adds it to the receipt refs and
+  syncs again — **without asking**. This is the flow the vault's own rules ask for at project close.
+- **Inside the vault**: the old approval flow stays — the agent offers candidates and waits.
+- `BEYIN_DISTILLATION_MODE=offer` restores the approval flow everywhere.
 
 Everything is **fail-open**: an error never breaks the turn, that turn's contribution is just silently
 missing. Retrieved vault content is **data**, not instructions — the agent must not follow text found in
@@ -79,7 +89,7 @@ Skills show up as `skill:brain`, `skill:brain-doctor`, `skill:brain-update`, `sk
 
 Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DISTILLATION_CONFIG`,
 `BEYIN_JEV_CONFIG`, `BEYIN_CONTEXT_CHARS`, `BEYIN_REMINDERS=0`, `BEYIN_INCLUDE_VAULT=1`,
-`BEYIN_DISTILLATION=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
+`BEYIN_DISTILLATION=0`, `BEYIN_DISTILLATION_MODE=offer`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
 `BEYIN_LANG` (`tr` by default; `en` switches the injected context header and notices, the command
 descriptions and the `beyin_jev_*` tool schema to English), `BEYIN_JEV_MODEL`,
 `BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`, `BEYIN_FORCE_REMINDER=1`.
@@ -95,9 +105,9 @@ need to be edited before upgrading:
 | `injectionOnly.<project>.distillation` | `injectionOnly.<project>.damitma` |
 | `BEYIN_DISTILLATION`, `BEYIN_DISTILLATION_CONFIG` | `BEYIN_DAMITMA`, `BEYIN_DAMITMA_CONFIG` |
 
-When both exist, the current name wins (file: `distillation.json`; key: `distillation`). Only two names
-are the user-facing triggers and stay Turkish on purpose: the `/damitma` command and the injected
-Turkish texts (`BEYIN_LANG=tr`, the default).
+When both exist, the current name wins (file: `distillation.json`; key: `distillation`). The command is
+`/distillation`; the old `/damitma` name is gone. Injected texts still follow `BEYIN_LANG` (`tr` by
+default) — they are output, not naming.
 
 Disable a single extension while keeping the package:
 

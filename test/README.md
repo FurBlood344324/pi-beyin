@@ -36,7 +36,7 @@ Steps 1–3 of `run.sh` read a live vault; everything else is self-contained. Th
 
 | File | Covers |
 |---|---|
-| `test-distillation.ts` | Offer conditions (memory written, no `knowledge/`), suppression (vault/excluded project/aborted/cooldown), isolated hook config (`excludeProjects` + `injectionOnly.distillation`, legacy `damitma` key covered), `/damitma` |
+| `test-distillation.ts` | Offer conditions (memory written, no `knowledge/`), suppression (vault/excluded project/aborted/cooldown), isolated hook config (`excludeProjects` + `injectionOnly.distillation`, legacy `damitma` key covered), `/distillation` |
 | `test-context.ts` | Real `beyin.py context` injection, skip conditions, receipt reminder → system prompt section, Jev cache filter + fail-open |
 | `test-jev.ts` | Provider registration, JSON parsing/normalization (choice/score/bool), error paths (key/HTTP/abort), `/jev-test` |
 | `test-advisor.ts` | Advisor tools (`beyin_jev_review/answer/memory`), silent-mode gate, JSON stdin bridge (local validation errors only, no remote calls) |

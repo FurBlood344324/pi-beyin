@@ -13,6 +13,8 @@ const TMP = tmpDir();
 const WORK = path.join(TMP, "work");
 /** Fake "has its own memory" project for the injectionOnly + `distillation: true` (deliberate exception) case. */
 const WORK_SELF = path.join(TMP, "self-tracked");
+/** Outside the vault and not excluded: the "diverged project" case. */
+const PLAIN = path.join(TMP, "plain");
 const CFG = path.join(TMP, "distillation.json");
 /** Isolated hook config so we do not depend on the live `~/.config/beyin/pi-hook.json`.
  *  Paths are derived from the test's own HOME; fixed user paths break in CI. */
@@ -67,7 +69,7 @@ section("registry");
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	check("agent_before_settle handler exists", (pi.handlers.get("agent_before_settle") ?? []).length === 1);
-	check("/damitma command exists", pi.commands.has("damitma"));
+	check("/distillation command exists", pi.commands.has("distillation"));
 }
 
 section("offer conditions");
@@ -79,7 +81,7 @@ section("offer conditions");
 	check("receipt + no knowledge → offer", hasOffer(r));
 	check("offer has type custom_message", r[0]?.entries?.[0]?.type === "custom_message");
 	check("offer display=false", r[0]?.entries?.[0]?.display === false);
-	check("offer mentions maxCandidates", /En fazla 3 aday/.test(r[0]?.entries?.[0]?.content ?? ""));
+	check("message mentions maxCandidates", /en fazla 3/i.test(r[0]?.entries?.[0]?.content ?? ""));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
@@ -146,6 +148,39 @@ section("offer conditions");
 		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
 	]);
 	check("legacy injectionOnly damitma=true still honored", hasOffer(r));
+}
+{
+	// Automatic apply outside the vault: the injected text must tell the agent to sync and write.
+	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 2 });
+	const r = await runTurn(pi, makeCtx({ cwd: PLAIN }).ctx, [
+		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
+	]);
+	const content: string = r[0]?.entries?.[0]?.content ?? "";
+	check("outside the vault → automatic apply", /otomatik|automatic/i.test(content), content.slice(0, 40));
+	check("apply mentions sync", /beyin\.py sync/.test(content));
+	check("apply needs no user approval", !/kullanıcı onayı|user approves|before the user/i.test(content));
+}
+{
+	// Inside the vault the flow stays a suggestion.
+	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 2 });
+	const r = await runTurn(pi, makeCtx({ cwd: VAULT }).ctx, [
+		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
+	]);
+	const content: string = r[0]?.entries?.[0]?.content ?? "";
+	check("inside the vault → offer mode", /öneri|offer/i.test(content), content.slice(0, 40));
+}
+{
+	// BEYIN_DISTILLATION_MODE=offer restores the approval flow outside the vault.
+	process.env.BEYIN_DISTILLATION_MODE = "offer";
+	const mod: any = await import(extensionUrl("distillation", "fresh=mode-offer"));
+	delete process.env.BEYIN_DISTILLATION_MODE;
+	const pi = new MockPi();
+	mod.default(pi);
+	const r = await runTurn(pi, makeCtx({ cwd: PLAIN }).ctx, [
+		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
+	]);
+	const content: string = r[0]?.entries?.[0]?.content ?? "";
+	check("BEYIN_DISTILLATION_MODE=offer → offer mode", /öneri|offer/i.test(content), content.slice(0, 40));
 	fs.writeFileSync(
 		HOOK_CFG,
 		JSON.stringify({ excludeProjects: [WORK], injectionOnly: { [WORK_SELF]: { reminders: false, distillation: true } } }),
@@ -178,14 +213,14 @@ section("cooldown");
 	check("cooldown=0 → offer every turn", hasOffer(r1) && hasOffer(r2));
 }
 
-section("/damitma command");
+section("/distillation command");
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const { ctx, notes } = makeCtx();
-	await pi.commands.get("damitma").handler("", ctx);
+	await pi.commands.get("distillation").handler("", ctx);
 	check("sendMessage called", pi.sent.length === 1);
-	check("message contains damitma instructions", /damıtma/i.test(pi.sent[0]?.message?.content ?? ""));
-	check("notice emitted", notes.some((n) => /Damıtma önerisi istendi/.test(n.msg)));
+	check("message contains distillation instructions", /damıt|distill/i.test(pi.sent[0]?.message?.content ?? ""));
+	check("notice emitted", notes.some((n) => /Damıtma adımı istendi/.test(n.msg)));
 }
 
 summary();

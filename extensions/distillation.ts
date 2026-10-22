@@ -58,6 +58,9 @@ const CONFIG_FILE =
 	process.env.BEYIN_DISTILLATION_CONFIG || process.env.BEYIN_DAMITMA_CONFIG || defaultConfigFile();
 const HOOK_CONFIG_FILE = process.env.BEYIN_HOOK_CONFIG || path.join(HOME, ".config", "beyin", "pi-hook.json");
 const DEFAULT_EXCLUDES: string[] = [];
+/** apply = write the distillation immediately (default outside the vault); offer = ask first. */
+const MODE: "apply" | "offer" = /^offer$/i.test(process.env.BEYIN_DISTILLATION_MODE || "") ? "offer" : "apply";
+
 const DISABLED =
 	process.env.BEYIN_DISTILLATION === "0" ||
 	process.env.BEYIN_DAMITMA === "0" ||
@@ -150,8 +153,21 @@ function insideVault(p: string): boolean {
 	}
 }
 
-function instruction(maxCandidates: number): string {
+function instruction(mode: "apply" | "offer", maxCandidates: number): string {
+	const vaultCmd = `python3 ${path.join(VAULT, "beyin.py")}`;
 	if (LANG === "en") {
+		if (mode === "apply") {
+			return [
+				"## Second brain — distill now (automatic)",
+				"This turn wrote to the second brain but nothing was distilled under `knowledge/`.",
+				"You are working outside the vault, so this project's lessons diverge from it. Apply the distillation now, without asking for approval:",
+				`1. Run \`${vaultCmd} sync\` so the vault index is current.`,
+				`2. Take at most ${maxCandidates} reusable lessons/decisions/concepts/methods from this turn, one line each: **title** — one sentence — source (file/receipt path). Skip transient detail; if nothing is durable, say so in one sentence and stop.`,
+				`3. Write each one with \`${vaultCmd} note-create\`, prefer improving an existing knowledge note over opening a new file, and add the note to the receipt refs.`,
+				`4. Run \`${vaultCmd} sync\` again, then report in one short paragraph what you wrote or updated.`,
+				"Write only what this turn actually established; never invent facts.",
+			].join("\n");
+		}
 		return [
 			"## Second brain — distillation offer",
 			"This turn wrote to the second brain but nothing was distilled under `knowledge/`.",
@@ -161,6 +177,18 @@ function instruction(maxCandidates: number): string {
 			'- If there is no durable lesson, skip the offer and say "nothing durable to distill" in one sentence.',
 			"- Write nothing under `knowledge/` before the user approves. After approval, write it with `beyin.py note-create` and add it to the receipt refs.",
 			"- If improving an existing knowledge note is enough, say so; do not open a new file.",
+		].join("\n");
+	}
+	if (mode === "apply") {
+		return [
+			"## İkinci beyin — şimdi damıt (otomatik)",
+			"Bu turda ikinci beyne kayıt düşüldü ama kalıcı bilgi `knowledge/` altına damıtılmadı.",
+			"Vault dışında çalışıyorsun; bu projenin dersleri vault'tan ayrışıyor. Onay sormadan damıtmayı şimdi uygula:",
+			`1. \`${vaultCmd} sync\` çalıştır (vault indeksi güncel olsun).`,
+			`2. Bu turdan en fazla ${maxCandidates} tekrar kullanılabilir öğrenim/karar/kavram/yöntem al; her biri tek satır: **başlık** — tek cümle — kaynak (dosya/receipt yolu). Geçici ayrıntıyı atla; kalıcı bir şey yoksa tek cümleyle söyle ve dur.`,
+			`3. Her birini \`${vaultCmd} note-create\` ile yaz; yeni dosya açmak yerine var olan knowledge notunu geliştirmeyi tercih et ve notu receipt refs'ine ekle.`,
+			`4. Yeniden \`${vaultCmd} sync\` çalıştır, sonra bir paragrafta neyi yazdığını/güncellediğini söyle.`,
+			"Yalnız bu turda gerçekten ortaya çıkanı yaz; olgu uydurma.",
 		].join("\n");
 	}
 	return [
@@ -177,7 +205,7 @@ function instruction(maxCandidates: number): string {
 
 export default function beyinDamitma(pi: ExtensionAPI) {
 	if (DISABLED) {
-		debug("devre dışı");
+		debug("disabled");
 		return;
 	}
 	const config = loadConfig();
@@ -236,17 +264,18 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 		if (!event.context.canContinue) return;
 		if (!hadMemory || hadKnowledge) return;
 		if (isExcluded(ctx.cwd)) {
-			debug(`çıkarılan proje, susuyorum: ${ctx.cwd}`);
+			debug(`excluded project, staying quiet: ${ctx.cwd}`);
 			return;
 		}
 		const cooldownMs = config.cooldownMinutes * 60 * 1000;
 		if (cooldownMs > 0 && Date.now() - lastOfferAt < cooldownMs) {
-			debug("cooldown nedeniyle öneri atlandı");
+			debug("skipped: cooldown");
 			return;
 		}
 
 		lastOfferAt = Date.now();
-		debug(`damıtma önerisi enjekte edildi (hadMemory=${hadMemory})`);
+		const effective: "apply" | "offer" = MODE === "apply" && !insideVault(ctx.cwd) ? "apply" : "offer";
+		debug(`distillation message injected (hadMemory=${hadMemory})`);
 		return {
 			continue: true,
 			entries: [
@@ -254,21 +283,22 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 					type: "custom_message" as const,
 					customType: "beyin-distillation",
 					display: false,
-					content: instruction(config.maxCandidates),
+					content: instruction(effective, config.maxCandidates),
 				},
 			],
 		};
 	});
 
-	// Manual trigger: /damitma — asks for the same suggestion right now.
-	pi.registerCommand("damitma", {
-		description: LANG === "en" ? "Ask for the second-brain distillation offer now" : "İkinci beyin damıtma önerisini şimdi iste",
+	// Manual trigger: /distillation — runs the same step right now.
+	pi.registerCommand("distillation", {
+		description: LANG === "en" ? "Run the second-brain distillation step now" : "İkinci beyin damıtma adımını şimdi çalıştır",
 		handler: async (_args, ctx: ExtensionContext) => {
+			const effective: "apply" | "offer" = MODE === "apply" && !insideVault(ctx.cwd) ? "apply" : "offer";
 			pi.sendMessage(
-				{ customType: "beyin-distillation", display: false, content: instruction(config.maxCandidates) },
+				{ customType: "beyin-distillation", display: false, content: instruction(effective, config.maxCandidates) },
 				{ triggerTurn: true },
 			);
-			ctx.ui.notify(LANG === "en" ? "Distillation offer requested" : "Damıtma önerisi istendi", "info");
+			ctx.ui.notify(LANG === "en" ? "Distillation step requested" : "Damıtma adımı istendi", "info");
 		},
 	});
 }
