@@ -9,7 +9,7 @@ Language: write in the user's language and reuse the target file's headings — 
 
 Distill transferable knowledge from an **external source** the user gives (web, paper, local PDF, bookmark) into
 the vault. Not copying raw text: **source ≠ derived**. The raw source stays outside the vault; the vault holds only
-the distilled, source-linked note. Related: `../beyin/SKILL.md`.
+the distilled, source-linked note. Related: `../brain/SKILL.md`.
 
 ## Paths (from the project profile)
 `<project root>/.pi/beyin-project.json` → `sources` (optional; fallback `sources/` under the project root),

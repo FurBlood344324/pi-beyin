@@ -10,7 +10,7 @@ Codex/Claude/OpenCode hooks, plus a CommandCode classifier bridge and the projec
 | `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
 | `extensions/damitma.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, offers **distillation candidates** (never writes on its own). `/damitma`. |
 | `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
-| `skills/` | `experiment-record`, `journal`, `literature`, `maintenance` — project-memory procedures driven by `<project>/.pi/beyin-project.json` (see [`skills/_shared/project-profile.md`](skills/_shared/project-profile.md)). |
+| `skills/` | `brain` (vault memory work), `brain-doctor` (health), `brain-update` (upgrades), `source-distillation` (external sources → concept notes), and the project-memory procedures `experiment-record`, `journal`, `literature`, `maintenance` driven by `<project>/.pi/beyin-project.json` (see [`skills/_shared/project-profile.md`](skills/_shared/project-profile.md)). |
 | `tools/pi-harness-patch.py` | Makes a beyin vault treat `pi` as a first-class harness (`receipt --harness pi`). Idempotent; the extension re-applies it after beyin updates. |
 
 Everything is **fail-open**: an error never breaks the turn, that turn's contribution is just
@@ -79,8 +79,10 @@ A vault whose `beyin.py` does not accept `--harness pi` needs `tools/pi-harness-
 
 ## Project memory skills
 
-The four skills read `<project>/.pi/beyin-project.json` for paths and scopes; without a profile they
-fall back to `logs/`, `journal/`, `literature/`. The profile schema and the safety rules (source ≠
+The skills are written in English; what they produce is not. Every skill writes in the user's language
+and reuses the target file's headings — existing headings are never translated. The project-memory skills
+read `<project>/.pi/beyin-project.json` for paths and scopes; without a profile they fall back to `logs/`,
+`journal/`, `literature/`. The profile schema and the safety rules (source ≠
 derived report, never delete, secrets are never read or copied) are in
 [`skills/_shared/project-profile.md`](skills/_shared/project-profile.md).
 

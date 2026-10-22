@@ -1,5 +1,5 @@
 ---
-name: beyin-doctor
+name: brain-doctor
 description: Health check for the beyin installation — does memory actually work, are sources indexed, are hook/worker, skills and updates healthy. Use for requests like "beyin doktor", "hafıza çalışıyor mu", "sağlık kontrolü", "doctor çalıştır", "neden hatırlamıyor", "hook çalışmıyor", "skill çakışması", "run a health check", "is the memory working", "why doesn't it remember", "check the hook". Never turns an indicator green by deleting data.
 ---
 
@@ -16,7 +16,7 @@ logs or private notes into the chat, explain the fault and the smallest fix.
 
 If a source change isn't indexed, `python3 beyin.py sync`; if skill files differ, reconcile deliberately with
 `python3 beyin.py skill-sync`. If both sides changed, keep the files and say which version has to be chosen. If an
-update was left half-done, use the `beyin-update` path; never turn a health indicator green by deleting the runtime
+update was left half-done, use the `brain-update` path; never turn a health indicator green by deleting the runtime
 database or the user's files.
 
 When the client connection has to be verified, use a probe note that contains no private data. In a new real
@@ -66,7 +66,7 @@ ask again for nothing.
 
 V3.1: the `updates` section inside `doctor` shows the latest version check; a network error does not prove being up
 to date. Use `beyin.py update --check --metadata-only` only for a version question. Route an update request to the
-`beyin-update` skill.
+`brain-update` skill.
 
 **Structural auditing is not `doctor`'s job.** Note/task/link graph, single-ownership violations, broken links,
 traces of dead claims → delegate to a read-only vault-audit sub-agent: it returns evidenced findings plus a

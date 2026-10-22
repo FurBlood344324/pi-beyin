@@ -1,6 +1,6 @@
 # Project Profile Schema (`<project>/.pi/beyin-project.json`)
 
-The portable skills (`experiment-record`, `journal`, `literature`, `maintenance`) read their paths from this file, so the
+The portable skills (`experiment-record`, `journal`, `literature`, `maintenance`, and the beyin workflow skills) read their paths from this file, so the
 same skill writes into each project's own directories.
 
 ## Schema

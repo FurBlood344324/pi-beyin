@@ -1,5 +1,5 @@
 ---
-name: beyin
+name: brain
 description: Vault memory procedure — find knowledge, write notes and tasks, record finished work with its sources, and keep companion notes current. Use for requests like "hatırla", "bunu kaydet", "not al", "hafızama bak", "görevi güncelle", "ne yapmıştık", "oturumu kapat", "beyne yaz", "remember this", "save this to memory", "note this down", "update the task", "what did we do", "close the session". Runs against the vault root that holds beyin.py. Also covers the optional Jev advisor and the consumption/auto-check preferences.
 ---
 
@@ -245,7 +245,7 @@ model runner or a new dependency without being asked.
 
 V3.1: the `updates` section inside `doctor` shows the latest version check; a network error does not prove being
 up to date. Use `beyin.py update --check --metadata-only` only for a version question. Route an update request to
-the `beyin-update` skill.
+the `brain-update` skill.
 
 ## Optional Jev and source-backed decision review
 
