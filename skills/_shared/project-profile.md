@@ -1,6 +1,6 @@
 # Project Profile Schema (`<project>/.pi/beyin-project.json`)
 
-The portable skills (`deney-kaydi`, `gunluk`, `literatur`, `bakim`) read their paths from this file, so the
+The portable skills (`experiment-record`, `journal`, `literature`, `maintenance`) read their paths from this file, so the
 same skill writes into each project's own directories.
 
 ## Schema
@@ -45,5 +45,5 @@ same skill writes into each project's own directories.
 - Nothing under `secret_dirs` is read or copied; it never enters a report.
 - `close_steps` commands run from the project root and must be **idempotent** and **derived-only**
   (they do not touch source data or human effort, and contain no delete/move). Being defined in the profile is
-  pre-approval; the `bakim` skill runs them at close and reports their output. Destructive/deleting work is
+  pre-approval; the `maintenance` skill runs them at close and reports their output. Destructive/deleting work is
   **never** written here.

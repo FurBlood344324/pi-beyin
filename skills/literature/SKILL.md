@@ -1,5 +1,5 @@
 ---
-name: literatur
+name: literature
 description: Literature/paper reading-task assignment and note-taking procedure. Use for requests like "literatür", "makale oku", "paper oku", "şu makaleyi oku", "okuma görevi ver", "not ekle", "şunu okudum anlatayım", "teori çalış", "read this paper", "give me a reading task", "add a note". Assigns reading tasks with focus questions; when the user explains what they read, writes an ordered note into the literature directory. Applies the "concept before tool" principle. Paths come from the project profile.
 ---
 
@@ -8,7 +8,7 @@ description: Literature/paper reading-task assignment and note-taking procedure.
 ## Paths (from the project profile)
 `<project root>/.pi/beyin-project.json` → `literature` (default `literature/`).
 Plan: `<literature>/plan.md` · Notes: `<literature>/NN-topic.md` · Template: `<literature>/_note-template.md`.
-Schema: `../_ortak/proje-profili.md`.
+Schema: `../_shared/project-profile.md`.
 
 ## Purpose
 **Concept before tool.** Before producing code/output, establish *why* the models in use work.

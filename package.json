@@ -24,6 +24,9 @@
       "./extensions/context.ts",
       "./extensions/damitma.ts",
       "./extensions/jev.ts"
+    ],
+    "skills": [
+      "./skills"
     ]
   },
   "files": [

@@ -1,5 +1,5 @@
 ---
-name: gunluk
+name: journal
 description: Daily journal (raw narrative) recording procedure. Use for requests like "günlük", "bugün ne yaptık", "günlüğe ekle", "bugünü kaydet", "gün sonu", "oturumu yaz", "dün ne yapmıştık", "günlüklerime bak", "journal this", "log today", "what did we do yesterday". Detects the system date, opens `YYYY-MM-DD.md` in the journal directory (creating it if absent) and adds what was done that day — including work done through conversation — as prose. The journal is the raw narrative layer; reports/summaries are derived from it. Path and scope come from the project profile.
 ---
 
@@ -8,7 +8,7 @@ description: Daily journal (raw narrative) recording procedure. Use for requests
 ## Paths (from the project profile)
 `<project root>/.pi/beyin-project.json` → `journal` (default `journal/`), `logs`, `state`, `progress`,
 `scopes`, `report_dir`. No profile → journal in `journal/`, template `journal/_template.md`.
-File: `<journal>/YYYY-MM-DD.md` (one file per day). Schema: `../_ortak/proje-profili.md`.
+File: `<journal>/YYYY-MM-DD.md` (one file per day). Schema: `../_shared/project-profile.md`.
 
 ## Purpose
 Keep what was done that day as **prose**. The flowing narrative that makes tomorrow-you say "right, that".
@@ -39,7 +39,7 @@ log number next to it.
 
 ## Auto-triggering
 - End-of-day/session signal ("that's it for today", "continue tomorrow") → update the journal.
-- If the profile defines `close_steps` after the journal is written → trigger the `bakim` skill's close steps
+- If the profile defines `close_steps` after the journal is written → trigger the `maintenance` skill's close steps
   (idempotent/derived commands run, e.g. refreshing a dated index).
 - If a new log was produced that day and no journal entry exists → offer to create it.
 - If unsure, ask: "Shall I add today to the journal?"

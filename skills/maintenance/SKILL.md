@@ -1,5 +1,5 @@
 ---
-name: bakim
+name: maintenance
 description: System maintenance / garbage-collection PROPOSAL procedure. Use for requests like "temizlik", "bakım", "sistemi toparla", "çöplükleri temizle", "clean up", "tidy the repo", "oturumu kapat", "yeni oturuma geçmeden temizle", "kompakte et", "compact the state". Also PROPOSE maintenance to the user at natural moments such as session close or phase transition. IMPORTANT — never runs on its own or on a schedule; it only proposes, and acts after user approval. Paths come from the project profile.
 ---
 
@@ -7,7 +7,7 @@ description: System maintenance / garbage-collection PROPOSAL procedure. Use for
 
 ## Paths
 `<project root>/.pi/beyin-project.json` → `logs`, `log_index`, `state`, `progress`, `journal`, `scopes`,
-`close_steps` (idempotent/derived commands run at close — see `../_ortak/proje-profili.md`).
+`close_steps` (idempotent/derived commands run at close — see `../_shared/project-profile.md`).
 No profile → default `logs/`, `journal/`.
 
 ## Core rule: PROPOSE, don't run

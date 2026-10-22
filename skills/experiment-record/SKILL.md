@@ -1,5 +1,5 @@
 ---
-name: deney-kaydi
+name: experiment-record
 description: Experiment and decision record standard (project memory). Use for requests like "memory", "deney kaydet", "log tut", "bu denemeyi yaz", "record this run", "sonuçları kaydet", "config/seed not al", "note the config/seed", "deney geçmişine bak", "ne denemiştim", "logs'a bak", "check the logs". Records model training, fine-tuning, ablations, dataset experiments and debugging sessions, plus decisions that must persist, in a reproducible form. Paths and scope come from the project profile (.pi/beyin-project.json).
 ---
 
@@ -26,7 +26,7 @@ First read `<project root>/.pi/beyin-project.json`. Fields:
 ```
 
 No profile → default: records in `logs/`, index `logs/index.md`. If unsure, ask the user.
-Full schema and field table: `../_ortak/proje-profili.md`.
+Full schema and field table: `../_shared/project-profile.md`.
 Nothing under `secret_dirs` is read, copied or versioned.
 
 ## Why
