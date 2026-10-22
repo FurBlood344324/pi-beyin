@@ -266,7 +266,8 @@ interface JevPrefs {
 	/**
 	 * Topicality bar — on the **score scale** (0..2), not a probability.
 	 *
-	 * The score question is a 3-level ordinal: `İlgisiz=0 · Arka plan=1 · Doğrudan ilgili=2`
+	 * The score question is a 3-level ordinal (0 irrelevant, 1 background, 2 directly relevant);
+	 * the criteria labels themselves are Turkish strings in the code below.
 	 * (the same three levels as Python `CRITERIA`). Expected score = weighted mean of the
 	 * distribution -> under linear mapping **score ≈ 2·p** (p = probability).
 	 *

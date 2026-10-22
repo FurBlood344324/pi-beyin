@@ -19,16 +19,16 @@ jobs:
         with:
           node-version: 24
 
-      # Host paketleri yalnız tip/şema için; çalışma anında pi sağlar.
-      # Sürüm sabit: API değişince typecheck burada kırılsın, sürpriz olmasın.
-      - name: Host paketleri
+      # Host packages are needed for types/schemas only; pi provides them at runtime.
+      # Version pinned on purpose: when the pi API changes, typecheck breaks here first.
+      - name: Host packages
         run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node
 
       - name: typecheck
         run: bun run typecheck
 
-      # Bu testler vault'a bağlı değildir. Vault'a bakanlar (context/advisor,
-      # E2E, senaryo) yerelde koşulur: bash test/run.sh
+      # These tests do not need a vault. The vault-dependent ones (context, advisor,
+      # E2E, scenario) run locally: bash test/run.sh
       - name: smoke
         run: bun run test/smoke.ts
 
