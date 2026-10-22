@@ -72,17 +72,32 @@ Skills show up as `skill:brain`, `skill:brain-doctor`, `skill:brain-update`, `sk
 
 | File | Content |
 |---|---|
-| `~/.config/beyin/pi-hook.json` | `excludeProjects` (projects where beyin stays silent) and `injectionOnly.<project>` → `{ "reminders": bool, "damitma": bool }` |
-| `~/.config/beyin/damitma.json` | `{ "enabled", "cooldownMinutes", "maxCandidates" }` |
+| `~/.config/beyin/pi-hook.json` | `excludeProjects` (projects where beyin stays silent) and `injectionOnly.<project>` → `{ "reminders": bool, "distillation": bool }` |
+| `~/.config/beyin/distillation.json` | `{ "enabled", "cooldownMinutes", "maxCandidates" }` |
 | `~/.config/beyin/jev.json` | `{ "enabled", "mode": "on" \| "shadow", "model", "minScore", "maxCandidates" }` |
 | `~/.config/beyin/jev-commandcode.env` | `CMD_API_KEY=...` (only when the pi model registry has no `command-code` key) |
 
-Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DAMITMA_CONFIG`,
+Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DISTILLATION_CONFIG`,
 `BEYIN_JEV_CONFIG`, `BEYIN_CONTEXT_CHARS`, `BEYIN_REMINDERS=0`, `BEYIN_INCLUDE_VAULT=1`,
-`BEYIN_DAMITMA=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
+`BEYIN_DISTILLATION=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
 `BEYIN_LANG` (`tr` by default; `en` switches the injected context header and notices, the command
 descriptions and the `beyin_jev_*` tool schema to English), `BEYIN_JEV_MODEL`,
 `BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`, `BEYIN_FORCE_REMINDER=1`.
+
+### Naming
+
+Keys and file names are English; the older Turkish names keep working, so an existing setup does not
+need to be edited before upgrading:
+
+| Current | Legacy (still read) |
+|---|---|
+| `distillation.json` | `damitma.json` |
+| `injectionOnly.<project>.distillation` | `injectionOnly.<project>.damitma` |
+| `BEYIN_DISTILLATION`, `BEYIN_DISTILLATION_CONFIG` | `BEYIN_DAMITMA`, `BEYIN_DAMITMA_CONFIG` |
+
+When both exist, the current name wins (file: `distillation.json`; key: `distillation`). Only two names
+are the user-facing triggers and stay Turkish on purpose: the `/damitma` command and the injected
+Turkish texts (`BEYIN_LANG=tr`, the default).
 
 Disable a single extension while keeping the package:
 

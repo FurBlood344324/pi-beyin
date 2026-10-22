@@ -11,9 +11,9 @@ import { extensionUrl, tmpDir } from "./fixtures.ts";
 const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "beyin");
 const TMP = tmpDir();
 const WORK = path.join(TMP, "work");
-/** Fake "has its own memory" project for the injectionOnly + `damitma: true` (deliberate exception) case. */
+/** Fake "has its own memory" project for the injectionOnly + `distillation: true` (deliberate exception) case. */
 const WORK_SELF = path.join(TMP, "self-tracked");
-const CFG = path.join(TMP, "damitma.json");
+const CFG = path.join(TMP, "distillation.json");
 /** Isolated hook config so we do not depend on the live `~/.config/beyin/pi-hook.json`.
  *  Paths are derived from the test's own HOME; fixed user paths break in CI. */
 const HOOK_CFG = path.join(TMP, "pi-hook.json");
@@ -23,11 +23,12 @@ fs.writeFileSync(
 );
 
 process.env.BEYIN_VAULT = VAULT;
-process.env.BEYIN_DAMITMA_CONFIG = CFG;
+process.env.BEYIN_DISTILLATION_CONFIG = CFG;
 process.env.BEYIN_HOOK_CONFIG = HOOK_CFG;
 process.env.BEYIN_DEBUG = "1";
 delete process.env.BEYIN_DISABLE;
 delete process.env.BEYIN_DAMITMA;
+delete process.env.BEYIN_DISTILLATION;
 
 const { default: factory } = await import(extensionUrl("distillation"));
 
@@ -127,12 +128,28 @@ section("offer conditions");
 	check("excluded project (work) → no offer", !hasOffer(r));
 }
 {
-	// injectionOnly.<project>.damitma === true -> distillation stays ON even if the project disabled reminders.
+	// injectionOnly.<project>.distillation === true -> distillation stays ON even if the project disabled reminders.
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx({ cwd: WORK_SELF }).ctx, [
 		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
 	]);
-	check("injectionOnly damitma=true → offer", hasOffer(r));
+	check("injectionOnly distillation=true → offer", hasOffer(r));
+}
+{
+	// Legacy key: `damitma: true` from an older config must keep working.
+	fs.writeFileSync(
+		HOOK_CFG,
+		JSON.stringify({ excludeProjects: [WORK], injectionOnly: { [WORK_SELF]: { reminders: false, damitma: true } } }),
+	);
+	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
+	const r = await runTurn(pi, makeCtx({ cwd: WORK_SELF }).ctx, [
+		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
+	]);
+	check("legacy injectionOnly damitma=true still honored", hasOffer(r));
+	fs.writeFileSync(
+		HOOK_CFG,
+		JSON.stringify({ excludeProjects: [WORK], injectionOnly: { [WORK_SELF]: { reminders: false, distillation: true } } }),
+	);
 }
 {
 	const pi = fresh({ enabled: false, cooldownMinutes: 0, maxCandidates: 3 });

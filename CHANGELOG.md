@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.15
+
+- Configuration names are English: `distillation.json`, `injectionOnly.<project>.distillation`,
+  `BEYIN_DISTILLATION` / `BEYIN_DISTILLATION_CONFIG`. The Turkish names (`damitma.json`, `damitma`,
+  `BEYIN_DAMITMA*`) are still read, so existing configs keep working; the current name wins when both exist.
+- The local config was migrated in place; the `/damitma` command stays as the user-facing trigger.
+
 ## 0.1.14
 
 - Rename `extensions/damitma.ts` → `extensions/distillation.ts` (and its test). The pi entry label

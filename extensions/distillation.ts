@@ -19,13 +19,13 @@
  *   - nothing was WRITTEN under `knowledge/` during the turn
  *   - the cooldown elapsed (default 30 min) — so it does not nag every turn
  *
- * Project exception: setting `pi-hook.json` -> `injectionOnly.<project>.damitma: true` turns the
+ * Project exception: setting `pi-hook.json` -> `injectionOnly.<project>.distillation: true` turns the
  * distillation suggestion on in that project even with reminders off (keeps distillation from
  * disappearing entirely in self-tracking projects such as work).
  *
- * Configuration: ~/.config/beyin/damitma.json
+ * Configuration: ~/.config/beyin/distillation.json (legacy: damitma.json)
  *   { "enabled": true, "cooldownMinutes": 30, "maxCandidates": 3 }
- * Env: BEYIN_DAMITMA="0" -> off; BEYIN_DISABLE="1" -> fully silent;
+ * Env: BEYIN_DISTILLATION="0" (legacy BEYIN_DAMITMA) -> off; BEYIN_DISABLE="1" -> fully silent;
  *      BEYIN_DEBUG="1" -> stderr diagnostics; BEYIN_VAULT -> vault path.
  *
  * Lives OUTSIDE the vault; beyin updates do not touch it.
@@ -38,10 +38,30 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 const HOME = process.env.HOME || homedir();
 const VAULT = process.env.BEYIN_VAULT || path.join(HOME, "projects", "beyin");
-const CONFIG_FILE = process.env.BEYIN_DAMITMA_CONFIG || path.join(HOME, ".config", "beyin", "damitma.json");
+/**
+ * Config file: `distillation.json` is the current name, `damitma.json` the legacy one.
+ * New name wins when both exist; `BEYIN_DISTILLATION_CONFIG` then `BEYIN_DAMITMA_CONFIG` override.
+ */
+function defaultConfigFile(): string {
+	const dir = path.join(HOME, ".config", "beyin");
+	const current = path.join(dir, "distillation.json");
+	const legacy = path.join(dir, "damitma.json");
+	try {
+		if (fs.existsSync(current) || !fs.existsSync(legacy)) return current;
+	} catch {
+		/* fall through to legacy */
+	}
+	return legacy;
+}
+
+const CONFIG_FILE =
+	process.env.BEYIN_DISTILLATION_CONFIG || process.env.BEYIN_DAMITMA_CONFIG || defaultConfigFile();
 const HOOK_CONFIG_FILE = process.env.BEYIN_HOOK_CONFIG || path.join(HOME, ".config", "beyin", "pi-hook.json");
 const DEFAULT_EXCLUDES: string[] = [];
-const DISABLED = process.env.BEYIN_DAMITMA === "0" || process.env.BEYIN_DISABLE === "1";
+const DISABLED =
+	process.env.BEYIN_DISTILLATION === "0" ||
+	process.env.BEYIN_DAMITMA === "0" ||
+	process.env.BEYIN_DISABLE === "1";
 const DEBUG = process.env.BEYIN_DEBUG === "1";
 /** Model-facing fixed texts: "tr" (default) or "en" via BEYIN_LANG. */
 const LANG = /^en/i.test(process.env.BEYIN_LANG || "") ? "en" : "tr";
@@ -109,7 +129,9 @@ function isExcluded(cwd: string): boolean {
 				if (rel !== "" && (rel.startsWith("..") || path.isAbsolute(rel))) continue;
 				const opts = (c.injectionOnly as Record<string, unknown>)[project];
 				// Per-project exception: distillation may stay on even with reminders off.
-				if (opts && typeof opts === "object" && (opts as Record<string, unknown>).damitma === true) continue;
+				// `distillation` is the current key; `damitma` is accepted for older configs.
+				const o = (opts ?? {}) as Record<string, unknown>;
+				if (o.distillation === true || o.damitma === true) continue;
 				return true;
 			}
 		}
