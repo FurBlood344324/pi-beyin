@@ -74,7 +74,17 @@ bun run smoke       # üç modülün import edilebildiğini doğrular
 bun run typecheck   # tsc --noEmit
 BEYIN_LIVE=1 bash test/run.sh   # + gerçek CommandCode çağrısı
 BEYIN_E2E=1 bash test/run.sh    # + gerçek pi oturumu (model çağrısı yapar)
+
+# Jev senaryo testi: verilen dizinde gerçek pi oturumu, çok turlu.
+# Dizin yoksa bu adım sessizce atlanır (hata sayılmaz).
+bash test/run.sh ~/projects/work
+bun run test/test-jev-scenario.ts ~/projects/work 3
+BEYIN_SCENE_DIR=~/projects/work BEYIN_SCENE_TURNS=3 bun run test/test-jev-scenario.ts
 ```
+
+Senaryo testi `pi --mode rpc --no-session --no-tools` ile çalışır (vault'a yazmaz) ve Jev'in arka plan
+puanlamasını bekler; `jev.json` kapalıysa yalnız enjeksiyonu doğrular. Süre/gecikme `BEYIN_SCENE_WAIT_MS`
+(vars. 30 sn) ile ayarlanır.
 
 Testler repodaki fixture'ları değiştirmez; her koşum kendi geçici dizininde çalışır.
 `test/run.sh` içindeki 1–3. adımlar canlı vault'a bakar; bunlar için `BEYIN_VAULT` doğru olmalı.
