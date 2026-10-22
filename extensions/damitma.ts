@@ -43,6 +43,8 @@ const HOOK_CONFIG_FILE = process.env.BEYIN_HOOK_CONFIG || path.join(HOME, ".conf
 const DEFAULT_EXCLUDES: string[] = [];
 const DISABLED = process.env.BEYIN_DAMITMA === "0" || process.env.BEYIN_DISABLE === "1";
 const DEBUG = process.env.BEYIN_DEBUG === "1";
+/** Model-facing fixed texts: "tr" (default) or "en" via BEYIN_LANG. */
+const LANG = /^en/i.test(process.env.BEYIN_LANG || "") ? "en" : "tr";
 
 const RECEIPT_RE = /(?:^|\s)beyin\.py\s+(?:receipt|note-create|task-create|task-update)\b/;
 const KNOWLEDGE_RE = /(^|[\\/])knowledge[\\/]/;
@@ -127,6 +129,18 @@ function insideVault(p: string): boolean {
 }
 
 function instruction(maxCandidates: number): string {
+	if (LANG === "en") {
+		return [
+			"## Second brain — distillation offer",
+			"This turn wrote to the second brain but nothing was distilled under `knowledge/`.",
+			"Now give the user a SHORT distillation offer (a short visible list):",
+			`- At most ${maxCandidates} candidates. One line each: **title** — one sentence — source (file/receipt path).`,
+			"- Offer only reusable lessons/decisions/concepts/methods; never invent candidates to fill a quota, never offer transient detail.",
+			'- If there is no durable lesson, skip the offer and say "nothing durable to distill" in one sentence.',
+			"- Write nothing under `knowledge/` before the user approves. After approval, write it with `beyin.py note-create` and add it to the receipt refs.",
+			"- If improving an existing knowledge note is enough, say so; do not open a new file.",
+		].join("\n");
+	}
 	return [
 		"## İkinci beyin — damıtma önerisi",
 		"Bu turda ikinci beyne kayıt düşüldü ama kalıcı bilgi `knowledge/` altına damıtılmadı.",
@@ -226,13 +240,13 @@ export default function beyinDamitma(pi: ExtensionAPI) {
 
 	// Manual trigger: /damitma — asks for the same suggestion right now.
 	pi.registerCommand("damitma", {
-		description: "İkinci beyin damıtma önerisini şimdi iste",
+		description: LANG === "en" ? "Ask for the second-brain distillation offer now" : "İkinci beyin damıtma önerisini şimdi iste",
 		handler: async (_args, ctx: ExtensionContext) => {
 			pi.sendMessage(
 				{ customType: "beyin-damitma", display: false, content: instruction(config.maxCandidates) },
 				{ triggerTurn: true },
 			);
-			ctx.ui.notify("Damıtma önerisi istendi", "info");
+			ctx.ui.notify(LANG === "en" ? "Distillation offer requested" : "Damıtma önerisi istendi", "info");
 		},
 	});
 }

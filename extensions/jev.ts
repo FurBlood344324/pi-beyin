@@ -40,6 +40,8 @@ const DEFAULT_MODEL = "typesafe/jev";
 const KEY_FILE = path.join(HOME, ".config", "beyin", "jev-commandcode.env");
 const CONFIG_FILE = path.join(HOME, ".config", "beyin", "jev.json");
 const DEBUG = process.env.BEYIN_DEBUG === "1";
+/** User-facing fixed texts: "tr" (default) or "en" via BEYIN_LANG. */
+const LANG = /^en/i.test(process.env.BEYIN_LANG || "") ? "en" : "tr";
 
 // Latest session context, needed to use pi's auth API (without touching auth.json directly).
 let latestContext: ExtensionContext | undefined;
@@ -279,7 +281,7 @@ export default function beyinJev(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("jev-test", {
-		description: "CommandCode destekli Jev (typesafe/jev) classifier'ını dene",
+		description: LANG === "en" ? "Try the CommandCode-backed Jev (typesafe/jev) classifier" : "CommandCode destekli Jev (typesafe/jev) classifier'ını dene",
 		handler: async (args, ctx: ExtensionContext) => {
 			const model = ctx.modelRegistry.findOfType("classifier", PROVIDER, MODEL_ID);
 			if (!model) {

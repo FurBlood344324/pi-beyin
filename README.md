@@ -26,6 +26,26 @@ text found in notes, imported transcripts or tool output.
 
 The extensions without a vault are no-ops; `context` and `damitma` have nothing to read.
 
+## Who this is for
+
+- You already use a **beyin vault** — a directory with `beyin.py` that brings its own installer and updater.
+- You run **pi** and want that vault wired into pi.
+- You have **CommandCode** access if you want Jev and the advisor tools. Without it, context injection,
+  the receipt reminder and the distillation offer still work; only scoring and the `beyin_jev_*` tools
+  stay inert.
+
+With CommandCode, install the official provider so Jev can reuse its key instead of a separate secret:
+
+```bash
+pi install npm:@commandcode/pi-commandcode-provider
+```
+
+Otherwise put `CMD_API_KEY=...` in `~/.config/beyin/jev-commandcode.env` (or export it).
+
+The harness patch only knows the code shapes it was written against. On an unfamiliar vault it prints
+warnings, leaves the files untouched (fail-soft) and `receipt --harness pi` stays unavailable until the
+patterns match — nothing breaks, the work is just labelled with another harness.
+
 ## Install
 
 ```bash
@@ -50,7 +70,9 @@ the context twice.
 
 Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DAMITMA_CONFIG`,
 `BEYIN_JEV_CONFIG`, `BEYIN_CONTEXT_CHARS`, `BEYIN_REMINDERS=0`, `BEYIN_INCLUDE_VAULT=1`,
-`BEYIN_DAMITMA=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
+`BEYIN_DAMITMA=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`, `BEYIN_LANG` (`tr`
+by default; `en` switches the injected notices and command descriptions to English — the
+`beyin_jev_*` tool schema text is still Turkish),
 `BEYIN_JEV_MODEL`, `BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`,
 `BEYIN_FORCE_REMINDER=1`.
 

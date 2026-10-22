@@ -43,6 +43,8 @@ const REMINDERS = process.env.BEYIN_REMINDERS !== "0";
 const INCLUDE_VAULT = process.env.BEYIN_INCLUDE_VAULT === "1";
 const DISABLED = process.env.BEYIN_DISABLE === "1";
 const DEBUG = process.env.BEYIN_DEBUG === "1";
+/** Model-facing fixed texts: "tr" (default) or "en" via BEYIN_LANG. */
+const LANG = /^en/i.test(process.env.BEYIN_LANG || "") ? "en" : "tr";
 
 const SYNTHETIC_PREFIXES = [
 	"<task-notification>",
@@ -647,13 +649,21 @@ export default function beyinContext(pi: ExtensionAPI) {
 		// Receipt reminder from the previous turn (full mode only); then reset the flags for the new turn.
 		let reminder: string | undefined;
 		if (REMINDERS && mode === "full" && prevEdited && !prevRecorded) {
+			const receiptCmd = `python3 ${path.join(VAULT, "beyin.py")} receipt --harness pi --event-id EVENT_ID --summary "..." --ref <vault-relative-path>`;
 			reminder =
-				"## İkinci beyin — kayıt gerekli\n" +
-				"Önceki turda dosya düzenlendi ve ikinci beyne kayıt düşülmedi. " +
-				"Bu mesajı yanıtlamadan ÖNCE kaydet: vault dosyasıysa " +
-				`\`python3 ${path.join(VAULT, "beyin.py")} receipt --harness pi --event-id EVENT_ID --summary "..." --ref <vault-goreli-yol>\`; ` +
-				"vault dışı bir işse `note-create`/`task-create` ile vault'a kısa bir sonuç/görev notu yaz. " +
-				"Kalıcı bir öğrenim varsa `knowledge/` altına damıt. Sonra normal yanıtı ver.";
+				LANG === "en"
+					? "## Second brain — record required\n" +
+						"The previous turn edited files without recording anything in the second brain. " +
+						"Record BEFORE answering this message: for a vault file run " +
+						`\`${receiptCmd}\`; ` +
+						"for work outside the vault write a short result/task note with `note-create`/`task-create`. " +
+						"If there is a durable lesson, distill it under `knowledge/`. Then answer normally."
+					: "## İkinci beyin — kayıt gerekli\n" +
+						"Önceki turda dosya düzenlendi ve ikinci beyne kayıt düşülmedi. " +
+						"Bu mesajı yanıtlamadan ÖNCE kaydet: vault dosyasıysa " +
+						`\`${receiptCmd}\`; ` +
+						"vault dışı bir işse `note-create`/`task-create` ile vault'a kısa bir sonuç/görev notu yaz. " +
+						"Kalıcı bir öğrenim varsa `knowledge/` altına damıt. Sonra normal yanıtı ver.";
 		}
 		prevEdited = false;
 		prevRecorded = false;
