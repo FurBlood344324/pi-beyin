@@ -1,0 +1,42 @@
+{
+  "name": "pi-beyin",
+  "version": "0.1.0",
+  "description": "pi-native bridge for the beyin second brain: context injection, distillation reminders, and Jev advisor tools.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "second-brain",
+    "vault",
+    "context"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "author": "furblood344324",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FurBlood344324/pi-beyin.git"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/context.ts",
+      "./extensions/damitma.ts",
+      "./extensions/jev.ts"
+    ]
+  },
+  "files": [
+    "extensions",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "bash test/run.sh",
+    "smoke": "bun run test/smoke.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

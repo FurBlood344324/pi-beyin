@@ -1,0 +1,9 @@
+{
+  "excludeProjects": ["/home/furblood/projects/work"],
+  "injectionOnly": {
+    "/home/furblood/projects/work-self": {
+      "reminders": false,
+      "damitma": true
+    }
+  }
+}
