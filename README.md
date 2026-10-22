@@ -77,6 +77,21 @@ The extensions call `beyin.py` (read-only unless the agent runs a write command)
 A vault whose `beyin.py` does not accept `--harness pi` needs `tools/pi-harness-patch.py ensure
 --vault <vault>` (the extension does this on session start).
 
+## Relationship to beyin v3
+
+`pi-beyin` is the **pi-side** adapter; the vault, `beyin.py` and the canonical skill templates belong to
+beyin v3 and keep their own release cycle.
+
+- `tools/pi-harness-patch.py` is the only thing that touches beyin's files: it adds `pi` to the harness
+  list in two managed modules (plus three pi-specific fixes) and re-syncs the install manifest so
+  `beyin.py update` plans cleanly. **A beyin update reverts these edits**; the extension calls `ensure`
+  on session start, so they come back by themselves. `status` is read-only.
+- The skills here are **copies for pi**, not links into the vault. beyin still installs its own copies
+  under `.claude/skills/` for the other harnesses; pi does not read that directory.
+- Notifications stay in the adapter: the injected context, the receipt reminder, the distillation
+  suggestion and the `beyin_jev_*` tool descriptions ship with this package. They are written in Turkish
+  today (the author's language); anything a *skill* writes follows the user's language.
+
 ## Project memory skills
 
 Skill descriptions carry bilingual trigger phrases (English + Turkish) on purpose: a description is a

@@ -57,29 +57,30 @@ EDITS = {
             "('codex', 'claude', 'antigravity', 'hermes', 'opencode', 'omp', 'pi')",
         ),
     ],
-    # Python Jev istemcisi urllib varsayılan UA'sı ('Python-urllib/x') ile CommandCode'a gidince
-    # Cloudflare 1010 -> HTTP 403 alıyor. openai-node UA'sı (pi-native yolun kullandığı) geçiyor.
-    # Update sonrası 'ensure' yeniden uygular. Ayrıntı: work staj/logs/0111.
+    # The Python Jev client sends urllib's default UA ('Python-urllib/x') to CommandCode and gets
+    # Cloudflare 1010 -> HTTP 403. The openai-node UA (what the pi-native path uses) passes.
+    # 'ensure' re-applies this after every update. Measured 2026-10-15.
     ".claude/scripts/beyin_v3_jev_client.py": [
         (
             "headers={'Authorization':'Bearer '+key,'Content-Type':'application/json'}",
             "headers={'Authorization':'Bearer '+key,'Content-Type':'application/json','User-Agent':'openai-node/4.0.0'}",
         ),
     ],
-    # CONTEXT_LIMIT (4000) Jev'in gerçek bağlam kapasitesinin çok altındaydı: 19943 kr bağlamla dahi
-    # kanıt Sonda olduğu hâlde doğru verdict + yüksek confidence verdi (kırpma yok, 2026-10-15 ölçümü);
-    # ~24424 kr'da transport sınırı devreye giriyor (`max_input_chars=24000`). 4000 iken >4000 kr notlar
-    # `source_context_incomplete` ile doğrulanamıyordu (log 0114). 12000: her mevcut notu kapsar, güvenli bölgede.
+    # CONTEXT_LIMIT (4000) sat far below Jev's real context capacity: even with 19943 chars of context
+    # and the evidence at the very end, it returned the right verdict with high confidence (no
+    # truncation, measured 2026-10-15). The transport limit starts around 24424 chars
+    # (`max_input_chars=24000`). At 4000, notes longer than that failed as
+    # `source_context_incomplete`. 12000 covers every current note and stays in the safe zone.
     ".claude/scripts/beyin_v3_jev.py": [
         (
             "CONTEXT_LIMIT = 4000  # Jev; a provider with a smaller window reports context_limit",
             "CONTEXT_LIMIT = 12000  # Jev; measured >=19943 kr safe (2026-10-15); transport cap max_input_chars=24000",
         ),
     ],
-    # memory_assessment tek istekte evidence + en fazla 4 prior gönderir; toplam gövde
-    # max_input_chars'ı (24000) aşınca `budget_exceeded` ile tüm değerlendirme düşüyordu (log 0114).
-    # Prior'lar opsiyonel, evidence zorunlu → bütçe yetmezse prior'ları sondan düşür. Bu,
-    # "complete context" invariant'ını bozmaz (hiçbir kaynak özetlenmez/kırpılmaz).
+    # memory_assessment sends evidence plus up to 4 priors in one request; when the body exceeded
+    # max_input_chars (24000) the whole assessment failed with `budget_exceeded`. Priors are optional,
+    # evidence is required -> when the budget is tight, drop priors from the end. This does not break
+    # the "complete context" invariant: no source is summarized or truncated.
     ".claude/scripts/beyin_v3_memory_assessment.py": [
         (
             "    try:\n"
