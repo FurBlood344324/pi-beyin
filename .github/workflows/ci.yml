@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Bu testler pi paketlerini yalnız type olarak import eder ve vault'a bağlı değildir.
+      # typecheck ve vault'a bakan testler (context/advisor) yerelde koşulur:
+      #   bun run typecheck && bash test/run.sh
+      - name: smoke
+        run: bun run test/smoke.ts
+
+      - name: damitma
+        run: bun run test/test-damitma.ts
+
+      - name: jev
+        run: bun run test/test-jev.ts
