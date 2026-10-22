@@ -47,7 +47,8 @@ bash e2e.sh
 
 - `harness.ts` pi API'sini taklit eder; gerçek `beyin.py` komutları çalışır.
 - **Config izolasyonu:** testler canlı `~/.config/beyin/*.json`'ı okumaz; her koşum `test/fixtures.ts` ile
-  kendi geçici dizinini kurar ve fixture'ları oraya kopyalar. 2026-10-17: canlı `pi-hook.json`'a bağımlı
+  kendi geçici dizinini kurar ve config'leri (hook/damıtma/jev) testin kendi yollarına göre **üretir** —
+  sabit kullanıcı yolu yok, CI'da da aynı sonuç. 2026-10-17: canlı `pi-hook.json`'a bağımlı
   olduğu için `test-damitma` "work'te öneri yok" testi bayatladı.
 - Jev testleri taze modül örneği (`?fresh=N` cache-bust) kullanır. Cache-bust için **mutlak yol** gerekir:
   Bun `file://` URL'lerinde sorgu dizesini yok sayar ve aynı modül örneğini döndürür (ölçüldü).

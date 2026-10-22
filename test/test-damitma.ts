@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { MockPi, makeCtx, check, section, summary } from "./harness.ts";
-import { extensionUrl, fixture, tmpDir } from "./fixtures.ts";
+import { extensionUrl, tmpDir } from "./fixtures.ts";
 
 const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "beyin");
 const WORK = path.join(os.homedir(), "projects", "work");
@@ -14,8 +14,13 @@ const WORK = path.join(os.homedir(), "projects", "work");
 const WORK_SELF = path.join(os.homedir(), "projects", "work-self");
 const TMP = tmpDir();
 const CFG = path.join(TMP, "damitma.json");
-/** Canlı `~/.config/beyin/pi-hook.json`'a bağımlı olmamak için izole hook config'i. */
-const HOOK_CFG = fixture("hook.test.json", TMP);
+/** Canlı `~/.config/beyin/pi-hook.json`'a bağımlı olmamak için izole hook config'i.
+ *  Yollar testin kendi HOME'una göre üretilir; sabit kullanıcı yolu CI'da kayar. */
+const HOOK_CFG = path.join(TMP, "pi-hook.json");
+fs.writeFileSync(
+	HOOK_CFG,
+	JSON.stringify({ excludeProjects: [WORK], injectionOnly: { [WORK_SELF]: { reminders: false, damitma: true } } }),
+);
 
 process.env.BEYIN_VAULT = VAULT;
 process.env.BEYIN_DAMITMA_CONFIG = CFG;

@@ -16,13 +16,6 @@ export function tmpDir(prefix = "pi-beyin-test-"): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
-/** Repodaki bir fixture'ı geçici dizine kopyalar ve kopyanın yolunu döndürür. */
-export function fixture(name: string, dir: string): string {
-	const dest = path.join(dir, name);
-	fs.copyFileSync(path.join(HERE, name), dest);
-	return dest;
-}
-
 /** Test edilecek extension dosyası; `query` ile Bun modül önbelleği tazelenir.
  *
  * Dikkat: mutlak yol kullanılır — `file://` URL'lerinde Bun sorgu dizesini yok sayar

@@ -15,9 +15,20 @@ jobs:
         with:
           bun-version: latest
 
-      # Bu testler pi paketlerini yalnız type olarak import eder ve vault'a bağlı değildir.
-      # typecheck ve vault'a bakan testler (context/advisor) yerelde koşulur:
-      #   bun run typecheck && bash test/run.sh
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Host paketleri yalnız tip/şema için; çalışma anında pi sağlar.
+      # Sürüm sabit: API değişince typecheck burada kırılsın, sürpriz olmasın.
+      - name: Host paketleri
+        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node
+
+      - name: typecheck
+        run: bun run typecheck
+
+      # Bu testler vault'a bağlı değildir. Vault'a bakanlar (context/advisor,
+      # E2E, senaryo) yerelde koşulur: bash test/run.sh
       - name: smoke
         run: bun run test/smoke.ts
 

@@ -6,11 +6,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { MockPi, makeCtx, check, section, summary, sleep } from "./harness.ts";
-import { extensionUrl, fixture, tmpDir } from "./fixtures.ts";
+import { extensionUrl, tmpDir } from "./fixtures.ts";
 
 const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "beyin");
 const TMP = tmpDir();
-const JEV_TEST_CFG = fixture("jev.test.json", TMP);
+const JEV_TEST_CFG = path.join(TMP, "jev.json");
 const WORK = path.join(os.homedir(), "projects", "work", "foo");
 
 process.env.BEYIN_VAULT = VAULT;
