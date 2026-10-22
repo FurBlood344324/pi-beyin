@@ -288,11 +288,14 @@ export default function beyinJev(pi: ExtensionAPI) {
 				ctx.ui.notify("Jev classifier bulunamadı", "error");
 				return;
 			}
-			const subject = args.trim() || "Anomali tespiti için PatchCore ve EfficientAD kullanıyoruz.";
+			const subject = args.trim() || "Bu projede önbellek katmanını Redis ile değiştirmeyi düşünüyoruz.";
 			const result = await ctx.modelRegistry.classify(
 				model,
 				{
-					state: { text: subject, candidates: [{ id: "a", title: "CV stajı", statement: "Görüntü işleme anomali tespiti" }] },
+					state: {
+						text: subject,
+						candidates: [{ id: "a", title: "Önbellek notu", statement: "Redis'e geçiş değerlendirmesi" }],
+					},
 					questions: {
 						relevance: {
 							type: "score",

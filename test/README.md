@@ -29,7 +29,8 @@ BEYIN_LIVE=1 bun run test-jev-live.ts
 bash e2e.sh
 ```
 
-Steps 1–3 of `run.sh` read a live vault; everything else is self-contained.
+Steps 1–3 of `run.sh` read a live vault; everything else is self-contained. The context query comes from
+`BEYIN_TEST_QUERY` (no project phrase ships in the repo); without it those checks are skipped.
 
 ## Coverage
 

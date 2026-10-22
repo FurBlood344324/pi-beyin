@@ -41,8 +41,8 @@ section("live CommandCode call");
 		model,
 		{
 			state: {
-				text: "Görüntü işleme stajında anomali tespiti için PatchCore kullanıyoruz.",
-				candidates: [{ id: "a", title: "CV stajı", statement: "Anomali tespiti ve OCR" }],
+				text: "Bu projede önbellek katmanını Redis ile değiştirmeyi düşünüyoruz.",
+				candidates: [{ id: "a", title: "Önbellek notu", statement: "Redis'e geçiş değerlendirmesi" }],
 			},
 			questions: {
 				relevance: { type: "score", instructions: "candidates[0] `text` ile ne kadar ilgili?", criteria: ["İlgisiz", "Arka plan", "Doğrudan ilgili"] },

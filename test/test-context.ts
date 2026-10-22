@@ -45,7 +45,30 @@ async function freshContext(jevCfg: any): Promise<MockPi> {
 	return fresh;
 }
 
-const QUERY = "anomali tespiti PatchCore EfficientAD OCR PaddleOCR";
+// The query must match a phrase from *your* vault; the default is deliberately neutral so the
+// public repo carries no project detail. Set BEYIN_TEST_QUERY to run the injection assertions.
+const QUERY = process.env.BEYIN_TEST_QUERY || "second brain notes";
+
+if (!process.env.BEYIN_TEST_QUERY) {
+	const { execFileSync } = await import("node:child_process");
+	let count = 0;
+	try {
+		const out = execFileSync("python3", [path.join(VAULT, "beyin.py"), "context", "--no-sync", "--json", QUERY], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+		count = (JSON.parse(out).records ?? []).length;
+	} catch {
+		count = 0;
+	}
+	if (count < 2) {
+		console.log(
+			`(skipped: ${count} records match the neutral query. Set BEYIN_TEST_QUERY to a phrase ` +
+				"from your vault to run the injection assertions.)",
+		);
+		process.exit(0);
+	}
+}
 
 /** Build an event object close to pi's real before_agent_start event. */
 function ev(prompt: string, sections: Record<string, string> = {}): any {

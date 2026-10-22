@@ -16,7 +16,7 @@ const TMP = tmpDir();
 const HOOK_CFG = path.join(TMP, "pi-hook.json");
 const SILENT = path.join(TMP, "silent");
 const WORK_ROOT = path.join(TMP, "work");
-const WORK_PROJECT = path.join(WORK_ROOT, "staj");
+const WORK_PROJECT = path.join(WORK_ROOT, "sub");
 
 process.env.BEYIN_VAULT = VAULT;
 process.env.BEYIN_HOOK_CONFIG = HOOK_CFG;

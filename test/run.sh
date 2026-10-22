@@ -42,7 +42,10 @@ if python3 "$VAULT/beyin.py" context --help 2>&1 | grep -q "pi"; then ok "contex
 if python3 "$VAULT/beyin.py" receipt --help 2>&1 | grep -q "pi"; then ok "receipt --harness pi"; else bad "pi missing from the receipt harness list"; fi
 
 hr "3. beyin.py context read (read-only)"
-if python3 "$VAULT/beyin.py" context --no-sync --json "anomali tespiti PatchCore OCR" 2>/dev/null |
+# The query must come from your own vault; the package ships no project-specific phrase.
+if [ -z "${BEYIN_TEST_QUERY:-}" ]; then
+	printf '  (skipped — set BEYIN_TEST_QUERY to a phrase from your vault)\n'
+elif python3 "$VAULT/beyin.py" context --no-sync --json "$BEYIN_TEST_QUERY" 2>/dev/null |
 	python3 -c "import json,sys; d=json.load(sys.stdin); n=len(d.get('records',[])); print(f'  \033[32m✓\033[0m {n} records'); assert n>0"; then :; else bad "context returned no records"; fi
 
 hr "3b. vault skills vs package skills"

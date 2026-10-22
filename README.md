@@ -144,7 +144,9 @@ bash test/run.sh ~/projects/example            # + multi-turn Jev scenario in th
 bun run test/test-jev-scenario.ts ~/projects/example 3
 ```
 
-`test/run.sh` steps 1–3 need a live vault; the rest is self-contained. Tests never write into the repo:
+`test/run.sh` steps 1–3 need a live vault; the rest is self-contained. Step 3 and the context
+injection tests query your vault with `BEYIN_TEST_QUERY` — the package ships no project-specific phrase, so
+without it those checks are skipped. Tests never write into the repo:
 each run builds its own temporary directory and config files. Step 3b warns when the vault's
 `.agents/skills` duplicates a package skill (a vault update can recreate those copies).
 

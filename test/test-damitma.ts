@@ -12,7 +12,7 @@ const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "be
 const TMP = tmpDir();
 const WORK = path.join(TMP, "work");
 /** Fake "has its own memory" project for the injectionOnly + `damitma: true` (deliberate exception) case. */
-const WORK_SELF = path.join(TMP, "work-self");
+const WORK_SELF = path.join(TMP, "self-tracked");
 const CFG = path.join(TMP, "damitma.json");
 /** Isolated hook config so we do not depend on the live `~/.config/beyin/pi-hook.json`.
  *  Paths are derived from the test's own HOME; fixed user paths break in CI. */

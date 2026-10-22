@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.13
+
+- No project-specific content in the package: the `/jev-test` self-test payload and the live-test mock
+  are neutral examples, temp fixtures use neutral names, and the vault query comes from
+  `BEYIN_TEST_QUERY` (checks are skipped when it is unset).
+
 ## 0.1.12
 
 - README rewritten for the current layout (quick start, verification, scope, privacy, release).
