@@ -62,42 +62,42 @@ function hasOffer(results: any[]): boolean {
 	return !!r && r.continue === true && /damıtma/i.test(r.entries?.[0]?.content ?? "");
 }
 
-section("kayıt");
+section("registry");
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
-	check("agent_before_settle handler var", (pi.handlers.get("agent_before_settle") ?? []).length === 1);
-	check("/damitma komutu var", pi.commands.has("damitma"));
+	check("agent_before_settle handler exists", (pi.handlers.get("agent_before_settle") ?? []).length === 1);
+	check("/damitma command exists", pi.commands.has("damitma"));
 }
 
-section("öneri koşulları");
+section("offer conditions");
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx().ctx, [
 		{ toolName: "bash", input: { command: "python3 beyin.py receipt --harness pi --event-id e1 --summary s" } },
 	]);
-	check("receipt + knowledge yok → öneri", hasOffer(r));
-	check("öneri custom_message tipinde", r[0]?.entries?.[0]?.type === "custom_message");
-	check("öneri display=false", r[0]?.entries?.[0]?.display === false);
-	check("öneri maxCandidates içeriyor", /En fazla 3 aday/.test(r[0]?.entries?.[0]?.content ?? ""));
+	check("receipt + no knowledge → offer", hasOffer(r));
+	check("offer has type custom_message", r[0]?.entries?.[0]?.type === "custom_message");
+	check("offer display=false", r[0]?.entries?.[0]?.display === false);
+	check("offer mentions maxCandidates", /En fazla 3 aday/.test(r[0]?.entries?.[0]?.content ?? ""));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx().ctx, [
 		{ toolName: "write", input: { path: `${VAULT}/notes/sonuc.md` } },
 	]);
-	check("vault yazımı (knowledge değil) + kayıt yok → öneri", hasOffer(r));
+	check("vault write (not knowledge) + no receipt → offer", hasOffer(r));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx().ctx, [
 		{ toolName: "write", input: { path: `${VAULT}/knowledge/concepts/x.md` } },
 	]);
-	check("knowledge yazıldı → öneri yok", !hasOffer(r));
+	check("knowledge written → no offer", !hasOffer(r));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx().ctx, []);
-	check("kayıt yok → öneri yok", !hasOffer(r));
+	check("no receipt → no offer", !hasOffer(r));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
@@ -107,7 +107,7 @@ section("öneri koşulları");
 		[{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }],
 		{ outcome: "aborted", context: { canContinue: true } },
 	);
-	check("outcome=aborted → öneri yok", !hasOffer(r));
+	check("outcome=aborted → no offer", !hasOffer(r));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
@@ -117,14 +117,14 @@ section("öneri koşulları");
 		[{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }],
 		{ outcome: "completed", context: { canContinue: false } },
 	);
-	check("context.canContinue=false → öneri yok", !hasOffer(r));
+	check("context.canContinue=false → no offer", !hasOffer(r));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx({ cwd: WORK }).ctx, [
 		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
 	]);
-	check("çıkarılan projede (work) öneri yok", !hasOffer(r));
+	check("excluded project (work) → no offer", !hasOffer(r));
 }
 {
 	// injectionOnly.<project>.damitma === true -> distillation stays ON even if the project disabled reminders.
@@ -132,14 +132,14 @@ section("öneri koşulları");
 	const r = await runTurn(pi, makeCtx({ cwd: WORK_SELF }).ctx, [
 		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
 	]);
-	check("injectionOnly damitma=true → öneri var", hasOffer(r));
+	check("injectionOnly damitma=true → offer", hasOffer(r));
 }
 {
 	const pi = fresh({ enabled: false, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx().ctx, [
 		{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } },
 	]);
-	check("config enabled=false → öneri yok", !hasOffer(r));
+	check("config enabled=false → no offer", !hasOffer(r));
 }
 
 section("cooldown");
@@ -148,9 +148,9 @@ section("cooldown");
 	const ctx = makeCtx().ctx;
 	await pi.fire("session_start", {}, ctx); // once per session
 	const r1 = await runTurn(pi, ctx, [{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }], undefined, false);
-	check("ilk turda öneri", hasOffer(r1));
+	check("offer on the first turn", hasOffer(r1));
 	const r2 = await runTurn(pi, ctx, [{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }], undefined, false);
-	check("cooldown içinde ikinci öneri yok", !hasOffer(r2));
+	check("no second offer within cooldown", !hasOffer(r2));
 }
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
@@ -158,17 +158,17 @@ section("cooldown");
 	await pi.fire("session_start", {}, ctx);
 	const r1 = await runTurn(pi, ctx, [{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }], undefined, false);
 	const r2 = await runTurn(pi, ctx, [{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }], undefined, false);
-	check("cooldown=0 → her turda öneri", hasOffer(r1) && hasOffer(r2));
+	check("cooldown=0 → offer every turn", hasOffer(r1) && hasOffer(r2));
 }
 
-section("/damitma komutu");
+section("/damitma command");
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const { ctx, notes } = makeCtx();
 	await pi.commands.get("damitma").handler("", ctx);
-	check("sendMessage çağrıldı", pi.sent.length === 1);
-	check("mesaj damitma talimatı içeriyor", /damıtma/i.test(pi.sent[0]?.message?.content ?? ""));
-	check("bildirim verildi", notes.some((n) => /Damıtma önerisi istendi/.test(n.msg)));
+	check("sendMessage called", pi.sent.length === 1);
+	check("message contains damitma instructions", /damıtma/i.test(pi.sent[0]?.message?.content ?? ""));
+	check("notice emitted", notes.some((n) => /Damıtma önerisi istendi/.test(n.msg)));
 }
 
 summary();

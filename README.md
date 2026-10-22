@@ -71,8 +71,8 @@ the context twice.
 Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DAMITMA_CONFIG`,
 `BEYIN_JEV_CONFIG`, `BEYIN_CONTEXT_CHARS`, `BEYIN_REMINDERS=0`, `BEYIN_INCLUDE_VAULT=1`,
 `BEYIN_DAMITMA=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`, `BEYIN_LANG` (`tr`
-by default; `en` switches the injected notices and command descriptions to English — the
-`beyin_jev_*` tool schema text is still Turkish),
+by default; `en` switches the injected context header and notices, the command descriptions and the
+`beyin_jev_*` tool schema to English),
 `BEYIN_JEV_MODEL`, `BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`,
 `BEYIN_FORCE_REMINDER=1`.
 
@@ -111,8 +111,8 @@ CLI are yours to install and update separately; this package never needs to know
 - The skills here are **copies for pi**, not links into the vault. Other harnesses keep their own copies
   under `.claude/skills/`; pi does not read that directory.
 - Notifications live in the adapter: the injected context, the receipt reminder, the distillation
-  suggestion and the `beyin_jev_*` tool descriptions ship here. They are written in Turkish today (the
-  author's language); anything a *skill* writes follows the user's language.
+  suggestion and the `beyin_jev_*` tool schema ship here. Turkish by default, English with
+  `BEYIN_LANG=en`; anything a *skill* writes follows the user's language.
 
 ## Project memory skills
 

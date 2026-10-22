@@ -47,15 +47,15 @@ const questions = {
 	q_bool: { type: "bool", criteria: { true: "t", false: "f" } },
 };
 
-section("provider kaydı");
-check("provider kayıtlı", !!provider);
-check("classifier fonksiyonu var", typeof classify === "function");
-check("model listesi doğru", provider?.models?.[0]?.id === model.id && provider?.models?.[0]?.type === "classifier");
+section("provider registration");
+check("provider registered", !!provider);
+check("classifier function exists", typeof classify === "function");
+check("model list correct", provider?.models?.[0]?.id === model.id && provider?.models?.[0]?.type === "classifier");
 check("baseUrl provider/v1", provider?.baseUrl === "https://api.commandcode.ai/provider/v1");
 check("endpoint commandcode", provider?.baseUrl?.startsWith("https://api.commandcode.ai"));
-check("/jev-test komutu var", pi.commands.has("jev-test"));
+check("/jev-test command exists", pi.commands.has("jev-test"));
 
-section("native systemone dönüşümü ve normalizasyon");
+section("native systemone conversion and normalization");
 {
 	await setKey("test-key");
 	mockFetch({
@@ -69,51 +69,51 @@ section("native systemone dönüşümü ve normalizasyon");
 	});
 	const r = await classify(model, { state: { text: "x" }, questions }, {});
 	check("stopReason=stop", r.stopReason === "stop", r.errorMessage);
-	check("choice seçildi", r.answers.q_choice?.choice === "yes");
-	check("choice olasılıkları normalize", Math.abs(r.answers.q_choice?.probabilities?.yes - 0.9) < 1e-6);
-	check("score korundu (native kayan)", Math.abs(r.answers.q_score?.score - 1.86) < 1e-6, r.answers.q_score);
-	check("noul -> bool olasılık", Math.abs(r.answers.q_bool?.probability - 0.87) < 1e-6 && r.answers.q_bool?.type === "bool");
-	check("istek systemone uç noktasına gitti", lastReq?.url === "https://api.commandcode.ai/provider/v1/systemone", lastReq?.url);
-	check("Authorization başlığı var", /Bearer test-key/.test(lastReq?.init?.headers?.Authorization ?? ""));
+	check("choice selected", r.answers.q_choice?.choice === "yes");
+	check("choice probabilities normalized", Math.abs(r.answers.q_choice?.probabilities?.yes - 0.9) < 1e-6);
+	check("score preserved (native float)", Math.abs(r.answers.q_score?.score - 1.86) < 1e-6, r.answers.q_score);
+	check("noul -> bool probability", Math.abs(r.answers.q_bool?.probability - 0.87) < 1e-6 && r.answers.q_bool?.type === "bool");
+	check("request went to the systemone endpoint", lastReq?.url === "https://api.commandcode.ai/provider/v1/systemone", lastReq?.url);
+	check("Authorization header present", /Bearer test-key/.test(lastReq?.init?.headers?.Authorization ?? ""));
 	const sent = JSON.parse(lastReq?.init?.body ?? "{}");
 	check("model=typesafe/jev", sent.model === "typesafe/jev", sent.model);
-	check("bool sorusu native 'noul' olarak gönderildi", sent.questions?.q_bool?.type === "noul", sent.questions?.q_bool);
-	check("score sorusu criteria ile gönderildi", Array.isArray(sent.questions?.q_score?.criteria));
+	check("bool question sent as native 'noul'", sent.questions?.q_bool?.type === "noul", sent.questions?.q_bool);
+	check("score question sent with criteria", Array.isArray(sent.questions?.q_score?.criteria));
 }
 {
 	await setKey("test-key");
 	mockFetch({ model: "typesafe/jev", answers: { q_score: { type: "score", score: 0 } } });
 	const r = await classify(model, { state: {}, questions: { q_score: questions.q_score } }, {});
-	check("score=0 korundu", r.stopReason === "stop" && r.answers.q_score?.score === 0, r.errorMessage);
+	check("score=0 preserved", r.stopReason === "stop" && r.answers.q_score?.score === 0, r.errorMessage);
 }
 {
 	await setKey("test-key");
 	// Without a `score` field, the expected value is derived from the probabilities
 	mockFetch({ answers: { q_score: { type: "score", probabilities: { "0": 0.1, "1": 0.2, "2": 0.7 } } } });
 	const r = await classify(model, { state: {}, questions: { q_score: questions.q_score } }, {});
-	check("score yoksa olasılıklardan türetildi (~1.6)", Math.abs((r.answers.q_score?.score ?? 0) - 1.6) < 1e-6, r.answers.q_score);
+	check("score derived from probabilities when missing (~1.6)", Math.abs((r.answers.q_score?.score ?? 0) - 1.6) < 1e-6, r.answers.q_score);
 }
 {
 	await setKey("test-key");
 	mockFetch({ error: { message: "bad" } });
 	const r = await classify(model, { state: {}, questions: { q_score: questions.q_score } }, {});
-	check("answers yoksa hata döndürür", r.stopReason === "error", r.stopReason);
+	check("returns error when answers are missing", r.stopReason === "error", r.stopReason);
 }
 
-section("hata yolları");
+section("error paths");
 {
 	await setKey(undefined);
 	mockFetch({ answers: {} });
 	const r = await classify(model, { state: {}, questions }, {});
-	check("anahtar yok → error", r.stopReason === "error");
-	check("anahtar hatası mesajı", /anahtar/i.test(r.errorMessage ?? ""), r.errorMessage);
+	check("no key → error", r.stopReason === "error");
+	check("key error message ('anahtar')", /anahtar/i.test(r.errorMessage ?? ""), r.errorMessage);
 }
 {
 	await setKey("test-key");
 	mockFetch("upstream patladı", 500);
 	const r = await classify(model, { state: {}, questions }, {});
 	check("HTTP 500 → error", r.stopReason === "error");
-	check("HTTP kodu mesajda", /HTTP 500/.test(r.errorMessage ?? ""), r.errorMessage);
+	check("HTTP code in message", /HTTP 500/.test(r.errorMessage ?? ""), r.errorMessage);
 }
 {
 	await setKey("test-key");
@@ -124,10 +124,10 @@ section("hata yolları");
 	await setKey("test-key");
 	mockFetch({ answers: {} });
 	const r = await classify(model, { state: {}, questions: {} }, {});
-	check("soru yoksa boş cevap (stop)", r.stopReason === "stop" && Object.keys(r.answers).length === 0);
+	check("no questions → empty answer (stop)", r.stopReason === "stop" && Object.keys(r.answers).length === 0);
 }
 
-section("/jev-test komutu");
+section("/jev-test command");
 {
 	const notes: any[] = [];
 	const ctx = {
@@ -138,13 +138,13 @@ section("/jev-test komutu");
 		},
 	};
 	await pi.commands.get("jev-test").handler("deneme", ctx);
-	check("cevap bildirildi", notes.some((n) => /Jev cevapları/.test(n.m)) || notes.some((n) => /Jev hata/.test(n.m)), notes);
+	check("answer reported", notes.some((n) => /Jev cevapları/.test(n.m)) || notes.some((n) => /Jev hata/.test(n.m)), notes);
 }
 {
 	const notes: any[] = [];
 	const ctx = { ui: { notify: (m: string, l?: string) => notes.push({ m, l }) }, modelRegistry: { findOfType: () => undefined } };
 	await pi.commands.get("jev-test").handler("", ctx);
-	check("classifier yoksa hata bildirir", notes.some((n) => /bulunamadı/.test(n.m)), notes);
+	check("notifies error when the classifier is missing", notes.some((n) => /bulunamadı/.test(n.m)), notes);
 }
 
 summary();

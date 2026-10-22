@@ -45,8 +45,25 @@ hr "3. beyin.py context read (read-only)"
 if python3 "$VAULT/beyin.py" context --no-sync --json "anomali tespiti PatchCore OCR" 2>/dev/null |
 	python3 -c "import json,sys; d=json.load(sys.stdin); n=len(d.get('records',[])); print(f'  \033[32m✓\033[0m {n} records'); assert n>0"; then :; else bad "context returned no records"; fi
 
-hr "4. extension unit/integration tests (model-free)"
-for t in test-damitma test-context test-jev test-advisor; do
+hr "3b. vault skills vs package skills"
+if [ -d "$VAULT/.agents/skills" ] && [ -n "$(ls -A "$VAULT/.agents/skills" 2>/dev/null)" ]; then
+	dupes=""
+	for d in "$VAULT/.agents/skills"/*; do
+		name="$(basename "$d")"
+		[ -f "$DIR/../skills/$name/SKILL.md" ] && dupes="$dupes $name"
+	done
+	if [ -n "$dupes" ]; then
+		printf '  \033[33m!\033[0m duplicate skills in the vault (.agents/skills):%s\n' "$dupes"
+		printf '    pi loads both; move the vault copies to a backup (a beyin update can recreate them).\n'
+	else
+		ok "no package skills duplicated in the vault"
+	fi
+else
+	ok "vault has no .agents/skills copies"
+fi
+
+hr "4. unit/integration tests (model-free)"
+for t in test-skills test-damitma test-context test-jev test-advisor; do
 	printf '\n-- %s --\n' "$t"
 	if bun run "$DIR/$t.ts"; then ok "$t passed"; else bad "$t failed (exit $?)"; fi
 done

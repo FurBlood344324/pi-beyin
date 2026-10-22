@@ -105,7 +105,7 @@ function truncate(value: unknown): string {
 export function summary(): void {
 	console.log(`\n=== ${pass} passed, ${fail} failed ===`);
 	if (fail > 0) {
-		console.log("Başarısızlar: " + failures.join(" | "));
+		console.log("Failures: " + failures.join(" | "));
 		process.exit(1);
 	}
 }

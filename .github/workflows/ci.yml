@@ -32,6 +32,9 @@ jobs:
       - name: smoke
         run: bun run test/smoke.ts
 
+      - name: skills
+        run: bun run test/test-skills.ts
+
       - name: damitma
         run: bun run test/test-damitma.ts
 

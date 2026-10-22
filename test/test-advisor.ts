@@ -37,15 +37,15 @@ const exec = (name: string, params: any, cwd: string) =>
 	pi.tools.get(name).execute("t1", params, undefined, undefined, { cwd });
 const text = (r: any): string => String(r?.content?.[0]?.text ?? "");
 
-section("danışman araçları kaydı");
+section("advisor tool registration");
 for (const name of ["beyin_jev_memory", "beyin_jev_review", "beyin_jev_answer"]) {
 	const t = pi.tools.get(name);
-	check(`${name} kayıtlı`, !!t);
-	check(`${name} açıklama + şema`, typeof t?.description === "string" && !!t?.parameters?.properties);
-	check(`${name} sistem-prompt yönergesi`, Array.isArray(t?.promptGuidelines) && t.promptGuidelines.length > 0);
+	check(`${name} registered`, !!t);
+	check(`${name} description + schema`, typeof t?.description === "string" && !!t?.parameters?.properties);
+	check(`${name} system-prompt guideline`, Array.isArray(t?.promptGuidelines) && t.promptGuidelines.length > 0);
 }
 
-section("silent mod kapısı");
+section("silent mode gate");
 writeHook({ excludeProjects: [SILENT], injectionOnly: {} });
 {
 	const r = await exec(
@@ -54,10 +54,10 @@ writeHook({ excludeProjects: [SILENT], injectionOnly: {} });
 		`${SILENT}/app`,
 	);
 	check("silent → isError", r?.isError === true);
-	check("silent → net mesaj ('susuyor')", /susuyor/.test(text(r)), text(r));
+	check("silent → clear message ('susuyor')", /susuyor/.test(text(r)), text(r));
 }
 
-section("full mod · yerel doğrulama, uzak çağrı yok");
+section("full mode · local validation, no remote call");
 writeHook({ excludeProjects: [], injectionOnly: {} });
 {
 	const r = await exec(
@@ -65,7 +65,7 @@ writeHook({ excludeProjects: [], injectionOnly: {} });
 		{ project: "beyin", claim: "", evidence: [{ record_id: "d", source_sha256: "0", quote: "q" }] },
 		TMP,
 	);
-	check("memory boş iddia → beyin.py hata JSON", r?.isError === true && /proposal_scope_or_status_invalid/.test(text(r)), text(r));
+	check("memory empty claim → beyin.py error JSON", r?.isError === true && /proposal_scope_or_status_invalid/.test(text(r)), text(r));
 }
 {
 	const r = await exec(
@@ -73,18 +73,18 @@ writeHook({ excludeProjects: [], injectionOnly: {} });
 		{ project: "beyin", claim: "", evidence: [{ record_id: "d", source_sha256: "0", quote: "q" }] },
 		TMP,
 	);
-	check("review boş iddia → beyin.py hata JSON", r?.isError === true && /proposal_scope_or_status_invalid/.test(text(r)), text(r));
+	check("review empty claim → beyin.py error JSON", r?.isError === true && /proposal_scope_or_status_invalid/.test(text(r)), text(r));
 }
 {
 	const r = await exec("beyin_jev_answer", { project: "beyin", claims: [{ text: "", citations: [] }] }, TMP);
-	check("answer geçersiz iddia → beyin.py hata JSON", r?.isError === true && /invalid_claim/.test(text(r)), text(r));
+	check("answer invalid claim → beyin.py error JSON", r?.isError === true && /invalid_claim/.test(text(r)), text(r));
 }
 
-section("inject-only mod (work) çalışır, reddedilmez");
+section("inject-only mode (work) works, not rejected");
 writeHook({ excludeProjects: [], injectionOnly: { [WORK_ROOT]: { reminders: false } } });
 {
 	const r = await exec("beyin_jev_answer", { project: "work", claims: [{ text: "", citations: [] }] }, WORK_PROJECT);
-	check("work → çalışır (beyin.py yanıtı geldi)", r?.isError === true && /invalid_claim/.test(text(r)), text(r));
+	check("work → works (beyin.py responded)", r?.isError === true && /invalid_claim/.test(text(r)), text(r));
 }
 
 fs.rmSync(SILENT, { recursive: true, force: true });

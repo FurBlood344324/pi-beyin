@@ -9,14 +9,14 @@ import { MockPi, check, section, summary } from "./harness.ts";
 import { extensionUrl, tmpDir } from "./fixtures.ts";
 
 if (process.env.BEYIN_LIVE !== "1") {
-	console.log("(canlı test atlandı: BEYIN_LIVE=1 ile çalıştır)");
+	console.log("(live test skipped: run with BEYIN_LIVE=1)");
 	process.exit(0);
 }
 
 const auth = JSON.parse(readFileSync(path.join(os.homedir(), ".pi", "agent", "auth.json"), "utf8"));
 const key: string | undefined = auth?.["command-code"]?.key;
 if (!key) {
-	console.log("CommandCode anahtarı bulunamadı (auth.json)");
+	console.log("No CommandCode key found (auth.json)");
 	process.exit(1);
 }
 
@@ -34,7 +34,7 @@ const API = "beyin-jev-system-one";
 const classify = provider.classifiers[API].classify;
 const model = { id: "jev-commandcode", api: API };
 
-section("canlı CommandCode çağrısı");
+section("live CommandCode call");
 {
 	const started = Date.now();
 	const r = await classify(
@@ -52,9 +52,9 @@ section("canlı CommandCode çağrısı");
 		{},
 	);
 	check("stopReason=stop", r.stopReason === "stop", r.errorMessage);
-	check("relevance cevabı geldi", r.answers?.relevance?.type === "score", r.answers);
-	check("approval cevabı geldi", r.answers?.approval?.type === "bool", r.answers);
-	console.log(`  (süre: ${Date.now() - started}ms, cevaplar: ${JSON.stringify(r.answers)})`);
+	check("relevance answer returned", r.answers?.relevance?.type === "score", r.answers);
+	check("approval answer returned", r.answers?.approval?.type === "bool", r.answers);
+	console.log(`  (took ${Date.now() - started}ms, answers: ${JSON.stringify(r.answers)})`);
 }
 
 summary();

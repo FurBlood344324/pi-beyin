@@ -53,6 +53,7 @@ jobs:
           set -euo pipefail
           bun run typecheck
           bun run test/smoke.ts
+          bun run test/test-skills.ts
           bun run test/test-damitma.ts
           bun run test/test-jev.ts
 

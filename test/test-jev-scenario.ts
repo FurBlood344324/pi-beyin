@@ -25,7 +25,7 @@ import { section, check, summary } from "./harness.ts";
 
 const DIR = process.argv[2] || process.env.BEYIN_SCENE_DIR;
 if (!DIR || !fs.existsSync(DIR)) {
-	console.error(`kullanım: bun run test-jev-scenario.ts <dizin> [tur]  (verilen dizin yok: ${DIR ?? "-"})`);
+	console.error(`usage: bun run test-jev-scenario.ts <dir> [turns]  (given directory does not exist: ${DIR ?? "-"})`);
 	process.exit(2);
 }
 const TURNS = Math.max(2, Number(process.argv[3] || 2));
@@ -43,7 +43,7 @@ try {
 	/* missing/broken -> treat as off */
 }
 
-console.log(`# Jev senaryo testi\n- dizin: ${DIR}\n- tur: ${TURNS}\n- model: ${MODEL}\n- Jev: ${jevEnabled ? "açık" : "kapalı (puanlama kontrolü atlanır)"}`);
+console.log(`# Jev scenario test\n- dir: ${DIR}\n- turns: ${TURNS}\n- model: ${MODEL}\n- Jev: ${jevEnabled ? "on" : "off (scoring check skipped)"}`);
 
 // --- pi RPC process ---
 const child = spawn("pi", ["--mode", "rpc", "--no-session", "--no-tools", "--model", MODEL], {
@@ -81,7 +81,7 @@ feed(child.stderr, stderrLines);
 const send = (id: string, message: string) => child.stdin.write(JSON.stringify({ id, type: "prompt", message }) + "\n");
 function waitSettled(timeout = 120000): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const t = setTimeout(() => reject(new Error("agent_settled zaman aşımı")), timeout);
+		const t = setTimeout(() => reject(new Error("agent_settled timeout")), timeout);
 		settleWaiters.push(() => {
 			clearTimeout(t);
 			resolve();
@@ -105,7 +105,7 @@ try {
 		}
 	}
 } catch (err) {
-	console.error(`HATA: ${String(err)}`);
+	console.error(`ERROR: ${String(err)}`);
 } finally {
 	child.stdin.end();
 	await new Promise<void>((r) => {
@@ -126,23 +126,23 @@ const scored = [...STDERR.matchAll(/jev \(arka plan\): (\d+) puan güncellendi/g
 const aborted = /jev durdu: aborted/.test(STDERR);
 const filterLines = [...STDERR.matchAll(/jev \(önbellek\): (\d+)\/(\d+) kaldı/g)].map((m) => `${m[1]}/${m[2]}`);
 
-console.log(`\n- enjekte bölümü: ${injected} · turlara göre boyut: [${injectSizes.join(", ")}]`);
-console.log(`- Jev arka plan: [${scored.join(", ")}] · abort: ${aborted} · filtre: [${filterLines.join(", ")}]`);
+console.log(`\n- injected sections: ${injected} · size per turn: [${injectSizes.join(", ")}]`);
+console.log(`- Jev background: [${scored.join(", ")}] · abort: ${aborted} · filter: [${filterLines.join(", ")}]`);
 const jevDiag = stderrLines.filter((l) => /^\[beyin-jev\]/.test(l) || /\[beyin\].*jev/.test(l));
 if (jevDiag.length) {
-	console.log("- Jev tanı satırları:");
+	console.log("- Jev diagnostic lines:");
 	for (const l of jevDiag) console.log(`   ${l}`);
 }
 
-section("doğrulamalar");
-check("beyin bağlamı enjekte edildi (>=1 tur)", injected >= 1, { injected });
-check("her turda enjeksiyon boyutu kaydedildi", injectSizes.length >= 1, injectSizes);
+section("verifications");
+check("beyin context injected (>=1 turn)", injected >= 1, { injected });
+check("injection size recorded every turn", injectSizes.length >= 1, injectSizes);
 if (jevEnabled) {
-	check("Jev arka plan puanlaması tamamlandı (abort YOK)", !aborted && scored.some((n) => n > 0), { aborted, scored });
+	check("Jev background scoring completed (no abort)", !aborted && scored.some((n) => n > 0), { aborted, scored });
 } else {
-	console.log("  (Jev kapalı — puanlama doğrulaması atlandı)");
+	console.log("  (Jev off — scoring check skipped)");
 }
-if (filterLines.length > 0) console.log(`  ℹ tur>=2 filtre uygulandı: ${filterLines.join(", ")}`);
-else console.log("  ℹ tur>=2 filtre satırı yok (tüm kayıtlar ilgili olabilir ya da önbellek boş)");
+if (filterLines.length > 0) console.log(`  ℹ turn>=2 filter applied: ${filterLines.join(", ")}`);
+else console.log("  ℹ no turn>=2 filter lines (all records may be relevant or the cache was empty)");
 
 summary();
