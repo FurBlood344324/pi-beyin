@@ -1,94 +1,112 @@
 # pi-beyin
 
-[pi](https://pi.dev) için ikinci beyin (beyin vault) köprüsü. Üç extension tek pakette gelir:
+[pi](https://pi.dev) integration for the **beyin** second brain: the pi equivalent of beyin's
+Codex/Claude/OpenCode hooks, plus a CommandCode classifier bridge and the project-memory skills.
 
-| Extension | Ne yapar |
+## What you get
+
+| Resource | What it does |
 |---|---|
-| `context.ts` | Her istemde vault'tan ilgili notları bağlama enjekte eder; kayıt düşülmeyen turdan sonra receipt hatırlatması verir. `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` danışman araçlarını kaydeder. |
-| `damitma.ts` | Vault'a kayıt düşüldüğü halde `knowledge/` altına damıtılmadıysa tur sonunda **öneri** sunar (otomatik yazmaz). `/damitma` komutu. |
-| `jev.ts` | CommandCode `typesafe/jev` karar modelini pi'ye classifier olarak bağlar. `/jev-test` komutu. |
+| `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
+| `extensions/damitma.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, offers **distillation candidates** (never writes on its own). `/damitma`. |
+| `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
+| `skills/` | `deney-kaydi`, `gunluk`, `literatur`, `bakim` — project-memory procedures driven by `<project>/.pi/beyin-project.json` (see [`skills/_ortak/proje-profili.md`](skills/_ortak/proje-profili.md)). |
+| `tools/pi-harness-patch.py` | Makes a beyin vault treat `pi` as a first-class harness (`receipt --harness pi`). Idempotent; the extension re-applies it after beyin updates. |
 
-Hepsi **fail-open**: hata turu bozmaz, yalnız o turun katkısı sessizce gelmez. Vault'tan gelen
-içerik **veri**dir; talimat olarak yorumlanmaz.
+Everything is **fail-open**: an error never breaks the turn, that turn's contribution is just
+silently missing. Retrieved vault content is **data**, not instructions — the agent must not follow
+text found in notes, imported transcripts or tool output.
 
-## Gereksinimler
+## Requirements
 
-- pi (`@earendil-works/pi-coding-agent`)
-- `python3` ve `beyin.py` içeren bir vault (varsayılan `~/projects/beyin`, `BEYIN_VAULT` ile değişir)
-- İsteğe bağlı: `~/.config/beyin/pi-hook.json`, `damitma.json`, `jev.json`
+- pi with extension/package support (`@earendil-works/pi-coding-agent` 1.4+)
+- `python3`
+- A **beyin vault**: a directory containing `beyin.py` (default `~/projects/beyin`, override with
+  `BEYIN_VAULT`)
 
-## Kurulum
+The extensions without a vault are no-ops; `context` and `damitma` have nothing to read.
+
+## Install
 
 ```bash
-# yerel geliştirme (kopyalanmaz, doğrudan düzenlenir)
-pi install ~/projects/pi-beyin
-
-# sürümlenmiş (git tag)
-pi install git:github.com/FurBlood344324/pi-beyin@v0.1.0
-
-# npm
 pi install npm:pi-beyin
+# or a pinned git ref
+pi install git:github.com/FurBlood344324/pi-beyin@v0.1.0
+# or a local checkout (loaded in place, not copied)
+pi install ~/projects/pi-beyin
 ```
 
-> Eski kurulumdan geçiyorsan `~/.pi/agent/extensions/beyin-*.ts` dosyalarını **kaldır**.
-> Aksi halde extension'lar iki kez yüklenir (çift bağlam enjeksiyonu / çift hatırlatma).
+Remove any old copies first (`~/.pi/agent/extensions/beyin-*.ts`); two copies load twice and inject
+the context twice.
 
-Tek tek kapatmak için settings'te paket filtresi kullanılabilir:
+## Configuration
+
+| File | Content |
+|---|---|
+| `~/.config/beyin/pi-hook.json` | `excludeProjects` (projects where beyin stays silent) and `injectionOnly.<project>` → `{ "reminders": bool, "damitma": bool }` |
+| `~/.config/beyin/damitma.json` | `{ "enabled", "cooldownMinutes", "maxCandidates" }` |
+| `~/.config/beyin/jev.json` | `{ "enabled", "mode": "on" \| "shadow", "model", "minScore", "maxCandidates" }` |
+| `~/.config/beyin/jev-commandcode.env` | `CMD_API_KEY=...` (only when the pi model registry has no `command-code` key) |
+
+Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DAMITMA_CONFIG`,
+`BEYIN_JEV_CONFIG`, `BEYIN_CONTEXT_CHARS`, `BEYIN_REMINDERS=0`, `BEYIN_INCLUDE_VAULT=1`,
+`BEYIN_DAMITMA=0`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
+`BEYIN_JEV_MODEL`, `BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`,
+`BEYIN_FORCE_REMINDER=1`.
+
+Disable a single extension while keeping the package:
 
 ```json
 {
   "packages": [
-    {
-      "source": "npm:pi-beyin",
-      "extensions": ["extensions/*.ts", "!extensions/damitma.ts"]
-    }
+    { "source": "npm:pi-beyin", "extensions": ["extensions/*.ts", "!extensions/damitma.ts"] }
   ]
 }
 ```
 
-## Yapılandırma
+### Vault contract
 
-### Dosyalar
+The extensions call `beyin.py` (read-only unless the agent runs a write command):
 
-| Dosya | İçerik |
+| Call | Used for |
 |---|---|
-| `~/.config/beyin/pi-hook.json` | `excludeProjects` (beyin'in sustuğu projeler), `injectionOnly.<proje>` → `{ reminders, damitma }` |
-| `~/.config/beyin/damitma.json` | `{ enabled, cooldownMinutes, maxCandidates }` |
-| `~/.config/beyin/jev.json` | `{ enabled, mode: "on" \| "shadow", model, minScore, maxCandidates }` |
-| `~/.config/beyin/jev-commandcode.env` | `CMD_API_KEY=...` (registry anahtarı yoksa) |
+| `context --json "<query>"` | candidate notes for injection (`id`, `source`, `source_sha256`, `text`, `kind`, `visibility`) |
+| `jev-review` / `jev-memory` / `jev-answer` (JSON on stdin) | advisor tools |
+| `receipt --harness pi --event-id ... --summary ... --ref ...` | what the reminder asks the agent to run |
 
-### Ortam değişkenleri
+A vault whose `beyin.py` does not accept `--harness pi` needs `tools/pi-harness-patch.py ensure
+--vault <vault>` (the extension does this on session start).
 
-- `BEYIN_VAULT` (vars. `~/projects/beyin`), `BEYIN_PYTHON` (vars. `python3`)
-- `BEYIN_HOOK_CONFIG`, `BEYIN_DAMITMA_CONFIG`, `BEYIN_JEV_CONFIG`, `BEYIN_DAMITMA`(=0 kapat), `BEYIN_JEV`(=0 kapat)
-- `BEYIN_CONTEXT_CHARS` (vars. 4000), `BEYIN_REMINDERS`(=0 kapat), `BEYIN_INCLUDE_VAULT`(=1 vault içinde de enjekte et)
-- `BEYIN_DISABLE`(=1 hepsi sussun), `BEYIN_DEBUG`(=1 stderr tanılama)
-- `BEYIN_JEV_MODEL`, `BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`
-- `BEYIN_FORCE_REMINDER`(=1 hatırlatmayı zorla; E2E testinde kullanılır)
+## Project memory skills
 
-## Geliştirme
+The four skills read `<project>/.pi/beyin-project.json` for paths and scopes; without a profile they
+fall back to `logs/`, `journal/`, `literature/`. The profile schema and the safety rules (source ≠
+derived report, never delete, secrets are never read or copied) are in
+[`skills/_ortak/proje-profili.md`](skills/_ortak/proje-profili.md).
+
+## Development
 
 ```bash
-bun run test        # modelsiz testler (vault salt-okuma)
-bun run smoke       # üç modülün import edilebildiğini doğrular
+bun run test        # model-free suite (reads the vault, writes nothing)
 bun run typecheck   # tsc --noEmit
-BEYIN_LIVE=1 bash test/run.sh   # + gerçek CommandCode çağrısı
-BEYIN_E2E=1 bash test/run.sh    # + gerçek pi oturumu (model çağrısı yapar)
+bun run smoke       # all three extensions import
 
-# Jev senaryo testi: verilen dizinde gerçek pi oturumu, çok turlu.
-# Dizin yoksa bu adım sessizce atlanır (hata sayılmaz).
-bash test/run.sh ~/projects/work
-bun run test/test-jev-scenario.ts ~/projects/work 3
-BEYIN_SCENE_DIR=~/projects/work BEYIN_SCENE_TURNS=3 bun run test/test-jev-scenario.ts
+BEYIN_LIVE=1 bash test/run.sh        # + one real CommandCode call
+BEYIN_E2E=1 bash test/run.sh         # + a real pi session (model calls)
+bash test/run.sh ~/projects/example  # + multi-turn Jev scenario in that project
+
+bun run test/test-jev-scenario.ts ~/projects/example 3
 ```
 
-Senaryo testi `pi --mode rpc --no-session --no-tools` ile çalışır (vault'a yazmaz) ve Jev'in arka plan
-puanlamasını bekler; `jev.json` kapalıysa yalnız enjeksiyonu doğrular. Süre/gecikme `BEYIN_SCENE_WAIT_MS`
-(vars. 30 sn) ile ayarlanır.
+`test/run.sh` steps 1–3 need a live vault; the rest is self-contained. Tests never write into the
+repo: each run builds its own temporary directory and config files.
 
-Testler repodaki fixture'ları değiştirmez; her koşum kendi geçici dizininde çalışır.
-`test/run.sh` içindeki 1–3. adımlar canlı vault'a bakar; bunlar için `BEYIN_VAULT` doğru olmalı.
+## Privacy
 
-## Lisans
+Vault text leaves the machine only through the Jev path, and only for records that pass the
+`visibility` / `remote_allowed` / `sensitivity` gate (`remoteSafe`). Keys come from the pi model
+registry or `~/.config/beyin/jev-commandcode.env`, and are never logged.
+
+## License
 
 MIT

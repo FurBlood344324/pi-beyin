@@ -10,7 +10,8 @@ set -uo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT="${BEYIN_VAULT:-$HOME/projects/beyin}"
-PATCH_SCRIPT="${BEYIN_PI_PATCH:-$HOME/.config/beyin/pi-harness/patch.py}"
+PATCH_SCRIPT="${BEYIN_PI_PATCH:-$DIR/../tools/pi-harness-patch.py}"
+[ -f "$PATCH_SCRIPT" ] || PATCH_SCRIPT="$HOME/.config/beyin/pi-harness/patch.py"
 
 # Jev senaryo testi hedef dizini: ilk argüman ya da BEYIN_SCENE_DIR
 SCENE_DIR="${BEYIN_SCENE_DIR:-}"

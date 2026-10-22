@@ -1,8 +1,8 @@
 /**
- * beyin-context.ts danışman araç testleri (jev-review / jev-answer / jev-memory sarmalayıcıları).
+ * beyin-context.ts advisor tool tests (jev-review / jev-answer / jev-memory wrappers).
  *
- * Gerçek beyin.py çağrılır; yalnız **yerel doğrulama** hataları tetiklenir (uzak CommandCode
- * çağrısı yapılmaz). Amaç: kayıt, şema, mod kapısı ve JSON stdin köprüsünün çalıştığını kanıtlamak.
+ * Calls real beyin.py; only **local validation** errors are triggered (no remote CommandCode
+ * call is made). Goal: prove that registration, schema, the mode gate and the JSON stdin bridge work.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -11,9 +11,12 @@ import { MockPi, check, section, summary } from "./harness.ts";
 import { extensionUrl, tmpDir } from "./fixtures.ts";
 
 const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "beyin");
-/** Hook config her testte yeniden yazılır; repodaki fixture değişmesin. */
-const HOOK_CFG = path.join(tmpDir(), "pi-hook.json");
-const SILENT = path.join(tmpDir("beyin-advisor-silent-"));
+/** Hook config is rewritten per test; the repo fixture stays untouched. */
+const TMP = tmpDir();
+const HOOK_CFG = path.join(TMP, "pi-hook.json");
+const SILENT = path.join(TMP, "silent");
+const WORK_ROOT = path.join(TMP, "work");
+const WORK_PROJECT = path.join(WORK_ROOT, "staj");
 
 process.env.BEYIN_VAULT = VAULT;
 process.env.BEYIN_HOOK_CONFIG = HOOK_CFG;
@@ -60,7 +63,7 @@ writeHook({ excludeProjects: [], injectionOnly: {} });
 	const r = await exec(
 		"beyin_jev_memory",
 		{ project: "beyin", claim: "", evidence: [{ record_id: "d", source_sha256: "0", quote: "q" }] },
-		"/tmp/beyin-advisor-full",
+		TMP,
 	);
 	check("memory boş iddia → beyin.py hata JSON", r?.isError === true && /proposal_scope_or_status_invalid/.test(text(r)), text(r));
 }
@@ -68,19 +71,19 @@ writeHook({ excludeProjects: [], injectionOnly: {} });
 	const r = await exec(
 		"beyin_jev_review",
 		{ project: "beyin", claim: "", evidence: [{ record_id: "d", source_sha256: "0", quote: "q" }] },
-		"/tmp/beyin-advisor-full",
+		TMP,
 	);
 	check("review boş iddia → beyin.py hata JSON", r?.isError === true && /proposal_scope_or_status_invalid/.test(text(r)), text(r));
 }
 {
-	const r = await exec("beyin_jev_answer", { project: "beyin", claims: [{ text: "", citations: [] }] }, "/tmp/beyin-advisor-full");
+	const r = await exec("beyin_jev_answer", { project: "beyin", claims: [{ text: "", citations: [] }] }, TMP);
 	check("answer geçersiz iddia → beyin.py hata JSON", r?.isError === true && /invalid_claim/.test(text(r)), text(r));
 }
 
 section("inject-only mod (work) çalışır, reddedilmez");
-writeHook({ excludeProjects: [], injectionOnly: { "/home/furblood/projects/work": { reminders: false } } });
+writeHook({ excludeProjects: [], injectionOnly: { [WORK_ROOT]: { reminders: false } } });
 {
-	const r = await exec("beyin_jev_answer", { project: "work", claims: [{ text: "", citations: [] }] }, "/home/furblood/projects/work/staj");
+	const r = await exec("beyin_jev_answer", { project: "work", claims: [{ text: "", citations: [] }] }, WORK_PROJECT);
 	check("work → çalışır (beyin.py yanıtı geldi)", r?.isError === true && /invalid_claim/.test(text(r)), text(r));
 }
 

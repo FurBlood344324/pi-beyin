@@ -1,6 +1,6 @@
 /**
- * beyin-context.ts testleri.
- * Gerçek beyin.py context çağrısı; Jev için mock classifier.
+ * beyin-context.ts tests.
+ * Real beyin.py context calls; a mock classifier for Jev.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -11,9 +11,16 @@ import { extensionUrl, tmpDir } from "./fixtures.ts";
 const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "beyin");
 const TMP = tmpDir();
 const JEV_TEST_CFG = path.join(TMP, "jev.json");
-const WORK = path.join(os.homedir(), "projects", "work", "foo");
+const WORK_ROOT = path.join(TMP, "work");
+const WORK = path.join(WORK_ROOT, "foo");
+const HOOK_CFG = path.join(TMP, "pi-hook.json");
+fs.writeFileSync(
+	HOOK_CFG,
+	JSON.stringify({ excludeProjects: [], injectionOnly: { [WORK_ROOT]: { reminders: false } } }),
+);
 
 process.env.BEYIN_VAULT = VAULT;
+process.env.BEYIN_HOOK_CONFIG = HOOK_CFG;
 process.env.BEYIN_JEV_CONFIG = JEV_TEST_CFG;
 process.env.BEYIN_DEBUG = "1";
 process.env.BEYIN_REMINDERS = "1";
@@ -28,7 +35,7 @@ const pi = new MockPi();
 factory(pi);
 
 let moduleSeq = 0;
-/** İzole (taze) bir extension örneği yükle; Jev modül-içi önbelleği karışmasın. */
+/** Load an isolated (fresh) extension instance so Jev's in-module cache does not leak across. */
 async function freshContext(jevCfg: any): Promise<MockPi> {
 	fs.writeFileSync(JEV_TEST_CFG, JSON.stringify(jevCfg));
 	moduleSeq++;
@@ -40,7 +47,7 @@ async function freshContext(jevCfg: any): Promise<MockPi> {
 
 const QUERY = "anomali tespiti PatchCore EfficientAD OCR PaddleOCR";
 
-/** pi'nin gerçek before_agent_start olayına yakın bir olay nesnesi üret. */
+/** Build an event object close to pi's real before_agent_start event. */
 function ev(prompt: string, sections: Record<string, string> = {}): any {
 	return { prompt, systemPrompt: "", systemPromptOptions: { sections } };
 }
@@ -96,9 +103,9 @@ section("before_agent_start — atlama koşulları");
 section("receipt hatırlatması → sistem prompt bölümü");
 {
 	const { ctx } = makeCtx();
-	// Bayrakları temizle + baseline
+	// Reset flags + baseline
 	await pi.fire("before_agent_start", ev(QUERY), ctx);
-	// Önceki turda vault dosyası yazıldı, kayıt yok
+	// Previous turn wrote a vault file, no record
 	await pi.fire("tool_result", { isError: false, toolName: "write", input: { path: `${VAULT}/knowledge/concepts/deneme.md` } }, ctx);
 	const e = ev(QUERY);
 	const r = (await pi.fire("before_agent_start", e, ctx))[0];
@@ -125,7 +132,7 @@ section("receipt hatırlatması → sistem prompt bölümü");
 	check("hatalı yazım hatırlatma tetiklemez", e.systemPromptOptions.sections.beyin_kayit === undefined);
 }
 {
-	// Hatırlatma ile birlikte bağlam da gelmeli (aynı turda ikisi birden)
+	// Context must arrive together with the reminder (both in the same turn)
 	const { ctx } = makeCtx();
 	await pi.fire("before_agent_start", ev(QUERY), ctx);
 	await pi.fire("tool_result", { isError: false, toolName: "write", input: { path: `${VAULT}/notes/rapor.md` } }, ctx);
@@ -153,7 +160,7 @@ section("Jev — önbellek filtresi (mock classifier)");
 	};
 	const { ctx } = makeCtx({ modelRegistry });
 
-	// 1. çağrı: önbellek boş → hepsi geçer (fail-open), puanlama arka planda tetiklenir
+	// 1st call: empty cache -> everything passes (fail-open); scoring is scheduled in the background
 	const r1 = (await piJ.fire("before_agent_start", ev(QUERY), ctx))[0];
 	check("ilk çağrıda kayıtlar geldi", !!r1?.message?.content);
 	await sleep(400);
@@ -162,7 +169,7 @@ section("Jev — önbellek filtresi (mock classifier)");
 	const firstSource = candidates[0]?.source ?? "";
 	const otherSource = candidates.slice(1).find((c) => c.source && c.source !== firstSource)?.source ?? "";
 
-	// 2. çağrı: aynı imza → önbellek uygulanır, skoru 0 olanlar elenir
+	// 2nd call: same signature -> cache applies, zero-score records are dropped
 	const r2 = (await piJ.fire("before_agent_start", ev(QUERY), ctx))[0];
 	const content2: string = r2?.message?.content ?? "";
 	check("skoru yüksek kaynak kaldı", firstSource === "" || content2.includes(firstSource), firstSource);

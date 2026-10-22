@@ -8,7 +8,9 @@
     "pi-extension",
     "second-brain",
     "vault",
-    "context"
+    "context",
+    "memory",
+    "skills"
   ],
   "license": "MIT",
   "type": "module",
@@ -26,7 +28,8 @@
   },
   "files": [
     "extensions",
-    "lib",
+    "skills",
+    "tools",
     "README.md",
     "LICENSE"
   ],
@@ -40,5 +43,9 @@
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*"
+  },
+  "homepage": "https://github.com/FurBlood344324/pi-beyin#readme",
+  "bugs": {
+    "url": "https://github.com/FurBlood344324/pi-beyin/issues"
   }
 }

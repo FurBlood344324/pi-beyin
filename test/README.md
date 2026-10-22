@@ -1,26 +1,25 @@
-# Beyin pi extension testleri
+# Test suite
 
-Beyin ikinci-beyin köprüsünü pi'de sağlayan extension'ların (`extensions/context.ts`,
-`extensions/damitma.ts`, `extensions/jev.ts`) test takımı.
+Tests for the three extensions in `extensions/` (`context`, `damitma`, `jev`).
 
-## Çalıştırma
-
-```bash
-./run.sh                 # modelsiz: harness + birim/entegrasyon (hızlı)
-BEYIN_LIVE=1 ./run.sh    # + gerçek CommandCode API çağrısı (küçük)
-BEYIN_E2E=1 ./run.sh     # + gerçek pi oturumu (model çağrısı yapar)
-./run.sh <dizin>         # + Jev senaryo testi o dizinde (ya da BEYIN_SCENE_DIR=<dizin>)
-```
-
-Jev senaryo testi (dizin tabanlı, çok turlu):
+## Running
 
 ```bash
-./run.sh /home/furblood/projects/work
-BEYIN_SCENE_DIR=/home/furblood/projects/work BEYIN_SCENE_TURNS=3 ./run.sh
-bun run test-jev-scenario.ts /home/furblood/projects/work 3
+bash run.sh                 # model-free: harness + unit/integration (fast)
+BEYIN_LIVE=1 bash run.sh    # + one real CommandCode call
+BEYIN_E2E=1 bash run.sh     # + a real pi session (model calls)
+bash run.sh <project-dir>   # + multi-turn Jev scenario in that project
 ```
 
-Tek tek:
+The Jev scenario test (directory-based, multi-turn):
+
+```bash
+bash run.sh ~/projects/example
+BEYIN_SCENE_DIR=~/projects/example BEYIN_SCENE_TURNS=3 bash run.sh
+bun run test-jev-scenario.ts ~/projects/example 3
+```
+
+Individual tests:
 
 ```bash
 bun run test-damitma.ts
@@ -30,27 +29,29 @@ BEYIN_LIVE=1 bun run test-jev-live.ts
 bash e2e.sh
 ```
 
-## Neyi kapsar
+Steps 1–3 of `run.sh` read a live vault; everything else is self-contained.
 
-| Dosya | Kapsam |
+## Coverage
+
+| File | Covers |
 |---|---|
-| `test-damitma.ts` | Öneri koşulları (kayıt var/knowledge yok), atlama (vault/work/aborted/cooldown), **izole hook config** (`hook.test.json`: `excludeProjects` + `injectionOnly.damitma=true`), `/damitma` |
-| `test-context.ts` | Gerçek `beyin.py context` enjeksiyonu, atlama koşulları, receipt hatırlatması → sistem prompt bölümü, Jev önbellek filtresi + fail-open |
-| `test-jev.ts` | Provider kaydı, JSON çözümleme/normalizasyon (choice/score/bool), hata yolları (anahtar/HTTP/abort), `/jev-test` |
-| `test-advisor.ts` | Danışman araçları (`beyin_jev_review/answer/memory`) kaydı, silent-mod kapısı, JSON stdin köprüsü (yerel doğrulama hataları; uzak çağrı yok) |
-| `test-jev-live.ts` | Gerçek CommandCode uçtan uca (yalnız `BEYIN_LIVE=1`) |
-| `e2e.sh` | Gerçek pi oturumunda bağlam + hatırlatma (yalnız `BEYIN_E2E=1`) |
-| `test-jev-scenario.ts` | **Verilen dizinde** gerçek pi + çok turlu: enjeksiyon + Jev arka plan puanlamasının tamamlandığı (abort/timeout regresyonu) |
-| `run.sh` | Hepsini + pi-harness yamasını koşar |
+| `test-damitma.ts` | Offer conditions (memory written, no `knowledge/`), suppression (vault/excluded project/aborted/cooldown), isolated hook config (`excludeProjects` + `injectionOnly.damitma`), `/damitma` |
+| `test-context.ts` | Real `beyin.py context` injection, skip conditions, receipt reminder → system prompt section, Jev cache filter + fail-open |
+| `test-jev.ts` | Provider registration, JSON parsing/normalization (choice/score/bool), error paths (key/HTTP/abort), `/jev-test` |
+| `test-advisor.ts` | Advisor tools (`beyin_jev_review/answer/memory`), silent-mode gate, JSON stdin bridge (local validation errors only, no remote calls) |
+| `test-jev-live.ts` | Real CommandCode round trip (only with `BEYIN_LIVE=1`) |
+| `e2e.sh` | Real pi session: context injection + reminder (only with `BEYIN_E2E=1`) |
+| `test-jev-scenario.ts` | **In a given directory**, real pi, multi-turn: injection + Jev background scoring completing (abort/timeout regression) |
+| `run.sh` | All of the above + the pi-harness patch |
 
-## Notlar
+## Notes
 
-- `harness.ts` pi API'sini taklit eder; gerçek `beyin.py` komutları çalışır.
-- **Config izolasyonu:** testler canlı `~/.config/beyin/*.json`'ı okumaz; her koşum `test/fixtures.ts` ile
-  kendi geçici dizinini kurar ve config'leri (hook/damıtma/jev) testin kendi yollarına göre **üretir** —
-  sabit kullanıcı yolu yok, CI'da da aynı sonuç. 2026-10-17: canlı `pi-hook.json`'a bağımlı
-  olduğu için `test-damitma` "work'te öneri yok" testi bayatladı.
-- Jev testleri taze modül örneği (`?fresh=N` cache-bust) kullanır. Cache-bust için **mutlak yol** gerekir:
-  Bun `file://` URL'lerinde sorgu dizesini yok sayar ve aynı modül örneğini döndürür (ölçüldü).
-- Testler vault'a yazmaz; yalnız salt-okuma `context`/`doctor` çağırır.
-- Çıktıdaki `[beyin]`/`[beyin-damitma]`/`[beyin-jev]` satırları `BEYIN_DEBUG=1` tanılamasıdır.
+- `harness.ts` imitates the pi extension API; the real `beyin.py` commands run.
+- **Config isolation:** tests never read the live `~/.config/beyin/*.json`. Each run creates its own
+  temporary directory (`fixtures.ts`) and generates hook/damitma/jev configs from the paths it was
+  given — no pinned user paths, so CI behaves the same as a laptop.
+  (2026-10-17: a test that depended on the live `pi-hook.json` went stale when that file changed.)
+- Jev tests load a fresh module instance via `?fresh=N`. Cache-busting requires an **absolute path**:
+  Bun ignores the query string on `file://` URLs and returns the cached module (measured).
+- Tests do not write to the vault; they only call read-only `context`/`doctor`.
+- `[beyin]` / `[beyin-damitma]` / `[beyin-jev]` lines in the output are `BEYIN_DEBUG=1` diagnostics.

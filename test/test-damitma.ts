@@ -1,6 +1,6 @@
 /**
- * beyin-damitma.ts testleri.
- * Model çağrısı yok; olay akışı ve öneri koşulları doğrulanır.
+ * beyin-damitma.ts tests.
+ * No model calls; the event flow and the conditions for an offer are verified.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -9,13 +9,13 @@ import { MockPi, makeCtx, check, section, summary } from "./harness.ts";
 import { extensionUrl, tmpDir } from "./fixtures.ts";
 
 const VAULT = process.env.BEYIN_VAULT || path.join(os.homedir(), "projects", "beyin");
-const WORK = path.join(os.homedir(), "projects", "work");
-/** injectionOnly + `damitma: true` (bilinçli istisna) vakası için sahte "kendi hafızası olan" proje. */
-const WORK_SELF = path.join(os.homedir(), "projects", "work-self");
 const TMP = tmpDir();
+const WORK = path.join(TMP, "work");
+/** Fake "has its own memory" project for the injectionOnly + `damitma: true` (deliberate exception) case. */
+const WORK_SELF = path.join(TMP, "work-self");
 const CFG = path.join(TMP, "damitma.json");
-/** Canlı `~/.config/beyin/pi-hook.json`'a bağımlı olmamak için izole hook config'i.
- *  Yollar testin kendi HOME'una göre üretilir; sabit kullanıcı yolu CI'da kayar. */
+/** Isolated hook config so we do not depend on the live `~/.config/beyin/pi-hook.json`.
+ *  Paths are derived from the test's own HOME; fixed user paths break in CI. */
 const HOOK_CFG = path.join(TMP, "pi-hook.json");
 fs.writeFileSync(
 	HOOK_CFG,
@@ -35,7 +35,7 @@ function writeCfg(cfg: any): void {
 	fs.writeFileSync(CFG, JSON.stringify(cfg));
 }
 
-/** Yeni factory örneği (config her factory çağrısında okunur). */
+/** New factory instance (config is read on every factory call). */
 function fresh(cfg: any): MockPi {
 	writeCfg(cfg);
 	const pi = new MockPi();
@@ -43,7 +43,7 @@ function fresh(cfg: any): MockPi {
 	return pi;
 }
 
-/** Bir turu simüle et: (session_start) -> before_agent_start -> tool'lar -> settle. */
+/** Simulate a turn: (session_start) -> before_agent_start -> tools -> settle. */
 async function runTurn(
 	pi: MockPi,
 	ctx: any,
@@ -127,7 +127,7 @@ section("öneri koşulları");
 	check("çıkarılan projede (work) öneri yok", !hasOffer(r));
 }
 {
-	// injectionOnly.<proje>.damitma === true → proje hatırlatmaları kapatmış olsa da damıtma AÇIK kalır.
+	// injectionOnly.<project>.damitma === true -> distillation stays ON even if the project disabled reminders.
 	const pi = fresh({ enabled: true, cooldownMinutes: 0, maxCandidates: 3 });
 	const r = await runTurn(pi, makeCtx({ cwd: WORK_SELF }).ctx, [
 		{ toolName: "write", input: { path: `${VAULT}/notes/x.md` } },
@@ -146,7 +146,7 @@ section("cooldown");
 {
 	const pi = fresh({ enabled: true, cooldownMinutes: 30, maxCandidates: 3 });
 	const ctx = makeCtx().ctx;
-	await pi.fire("session_start", {}, ctx); // oturum başına bir kez
+	await pi.fire("session_start", {}, ctx); // once per session
 	const r1 = await runTurn(pi, ctx, [{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }], undefined, false);
 	check("ilk turda öneri", hasOffer(r1));
 	const r2 = await runTurn(pi, ctx, [{ toolName: "bash", input: { command: "beyin.py receipt --harness pi" } }], undefined, false);
