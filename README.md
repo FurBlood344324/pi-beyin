@@ -14,6 +14,7 @@ pi skills.
 | `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording one. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
 | `extensions/distillation.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, makes the agent run `beyin.py sync` and write/update the knowledge note **automatically** when you are working outside the vault; inside the vault it stays a suggestion. `/distillation`. |
 | `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
+| `extensions/compact.ts` | A working context budget (240k by default) well below the model window, where **Jev decides the timing** — compact now or postpone at most twice. The summary itself is pi's own compaction; it is spooled under `<vault>/.pi/compaction/` as a derived artifact. `/compact-status`, `/compact-now`. |
 | `skills/brain` | Vault memory work: find notes, record finished work with its sources, update tasks, keep companion notes current. |
 | `skills/brain-doctor` | Health check: is memory indexed, are sources synced, are skills and updates healthy. |
 | `skills/brain-update` | Check for a new official version, update, or roll back a failed update. |
@@ -22,7 +23,6 @@ pi skills.
 | `tools/pi-harness-patch.py` | Makes a beyin vault treat `pi` as a first-class harness (`receipt --harness pi`). Idempotent; the extension re-applies it after a vault update. |
 
 ### Distillation: automatic outside the vault
-
 A turn that wrote to the vault but distilled nothing into `knowledge/` gets a follow-up instruction:
 
 - **Outside the vault** (a project whose lessons diverge from it): the agent runs `beyin.py sync`,
@@ -78,11 +78,50 @@ pi list                                  # the package and its resolved path
 Skills show up as `skill:brain`, `skill:brain-doctor`, `skill:brain-update`, `skill:source-distillation`,
 `skill:experiment-record`, `skill:journal`, `skill:literature`, `skill:maintenance`.
 
+### Compaction: a budget Jev may postpone, never a summary Jev writes
+
+pi compacts when the window is nearly full — on a 1M-token model that is around 984k, far too late to
+be a useful working budget. This extension adds a soft budget underneath it:
+
+| Layer | Trigger | Who decides |
+|---|---|---|
+| Soft budget (`extensions/compact.ts`) | `tokens >= min(compact.tokens, percent × window)` = 240k by default | **Jev**, then this extension |
+| Hard backstop | pi's own `compaction.reserveTokens` (~984k on a 1M window) | pi, mechanically |
+| Overflow recovery | a provider overflow or a truncated response | pi, mechanically |
+
+When the soft budget is crossed (checked at a settled, idle session — `ctx.compact()` aborts a running
+turn, so a mid-tool batch never triggers it), Jev gets a short deterministic digest — project, token
+level, the last three user requests, the tool mix since the newest request, whether the flow ended on a
+tool result, whether a receipt was written — and answers four questions: is compacting safe now, is this
+a boundary / mid-task / idle moment, how stale is the context, and (for a repeat) is postponing still
+worth it. Only an explicit *not safe + mid-task* verdict may postpone, at most `deferMax` (2) times.
+
+There is no path where compaction happens without a decision: Jev's yes, the defer budget running out,
+Jev being unavailable, `/compact-now`, or pi's own hard backstop. Jev can postpone; it can never force an
+early compaction. When the budget is crossed and Jev cannot answer (no classifier, timeout, error),
+the extension compacts — fail-**safe**, because the threshold was already crossed.
+
+**Nothing fancy happens to the summary.** pi's compaction already carries an iterative summary chain,
+cumulative file tracking, split-turn handling, cache-safe requests and overflow retry; re-implementing
+that to make a "smarter" summary would be technical debt for a smaller gain. We only add focus through
+`customInstructions` (keep decisions and their rationale, separate verified facts from assumptions, add a
+`Sources` section with the load-bearing paths).
+
+**Vault contract (source ≠ view).** After *any* compaction — ours, pi's threshold, overflow recovery,
+the user's `/compact` — the summary is spooled to `<vault>/.pi/compaction/<ts>-<sid>.md` with
+`kind: compaction-spool`, `derived: true` and the reason/token count. That directory is a dot-directory,
+which the vault indexer skips, so a model-written summary can never return as verified knowledge.
+Promoting a spool file into a note stays a user decision. `/compact-status` shows the budget, the last
+Jev verdict, the defer counter and the spool directory.
+
+Decision log: `~/.config/beyin/compact.log` (JSONL, one line per decision/compaction) — including the
+digest, so the question "was this a good moment?" can be answered from data instead of memory.
+
 ## Configuration
 
 | File | Content |
 |---|---|
-| `~/.config/beyin/pi-hook.json` | `excludeProjects` (projects where beyin stays silent) and `injectionOnly.<project>` → `{ "reminders": bool, "distillation": bool }` |
+| `~/.config/beyin/pi-hook.json` | `excludeProjects` (projects where beyin stays silent), `injectionOnly.<project>` → `{ "reminders": bool, "distillation": bool }` and an optional `compact` block (see below) |
 | `~/.config/beyin/distillation.json` | `{ "enabled", "cooldownMinutes", "maxCandidates" }` |
 | `~/.config/beyin/jev.json` | `{ "enabled", "mode": "on" \| "shadow", "model", "minScore", "maxCandidates" }` |
 | `~/.config/beyin/jev-commandcode.env` | `CMD_API_KEY=...` (only when the pi model registry has no `command-code` key) |
@@ -92,7 +131,34 @@ Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DISTILLA
 `BEYIN_DISTILLATION=0`, `BEYIN_DISTILLATION_MODE=offer`, `BEYIN_JEV=0`, `BEYIN_DISABLE=1`, `BEYIN_DEBUG=1`, `BEYIN_PI_PATCH`,
 `BEYIN_LANG` (`tr` by default; `en` switches the injected context header and notices, the command
 descriptions and the `beyin_jev_*` tool schema to English), `BEYIN_JEV_MODEL`,
-`BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`, `BEYIN_FORCE_REMINDER=1`.
+`BEYIN_JEV_API_KEY` / `CMD_API_KEY` / `COMMAND_CODE_API_KEY`, `BEYIN_FORCE_REMINDER=1`,
+`BEYIN_COMPACT=0`, `BEYIN_COMPACT_TOKENS`, `BEYIN_COMPACT_PERCENT`, `BEYIN_COMPACT_JEV=off`,
+`BEYIN_COMPACT_DEFER_MAX`, `BEYIN_COMPACT_JEV_TIMEOUT_MS`, `BEYIN_COMPACT_INSTRUCTIONS`,
+`BEYIN_COMPACT_SPOOL=0`, `BEYIN_COMPACT_LOG`.
+
+Compaction defaults are complete — no configuration is needed:
+
+```json
+{
+  "compact": {
+    "enabled": true,
+    "tokens": 240000,
+    "percent": 0.6,
+    "jev": "gate",
+    "deferMax": 2,
+    "jevTimeoutMs": 2500,
+    "instructions": "…extra focus for pi's summarizer…",
+    "disabledProjects": [],
+    "spool": true,
+    "log": "~/.config/beyin/compact.log"
+  }
+}
+```
+
+The effective budget is `min(tokens, percent × contextWindow)`, so switching to a 128k model tightens it
+automatically instead of disabling it. `"jev": "off"` makes it a purely mechanical budget — that is also
+the comparison arm when you want to know what Jev actually adds: run the same kind of work both ways and
+read the log.
 
 ### Naming
 
@@ -159,7 +225,7 @@ and no install scripts.
 ```bash
 bun run test        # model-free suite (reads the vault, writes nothing)
 bun run typecheck   # tsc --noEmit
-bun run smoke       # all three extensions import
+bun run smoke       # all four extensions import
 
 bun run test/test-skills.ts                    # package guards (no vault needed)
 bash test/run.sh                               # everything model-free

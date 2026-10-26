@@ -40,3 +40,6 @@ jobs:
 
       - name: jev
         run: bun run test/test-jev.ts
+
+      - name: compact
+        run: bun run test/test-compact.ts

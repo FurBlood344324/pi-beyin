@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.17
+
+- New `extensions/compact.ts`: a **working context budget** (240k by default) below pi's own threshold,
+  which fires far later on a 1M-token window. When the budget is crossed, Jev is asked one timing
+  question (safe now? boundary/mid-task/idle? how stale?) and may postpone at most `deferMax` times.
+  Jev can postpone; it can never force an early compaction, and when it cannot answer the extension
+  compacts (fail-safe). `/compact-status`, `/compact-now`.
+- The summary is still pi's own compaction (iterative chain, file tracking, split turns, overflow retry);
+  this extension only adds focus via `customInstructions` and never re-implements the summarizer.
+- Any compaction — ours, pi's threshold, overflow recovery, `/compact` — spools its summary to
+  `<vault>/.pi/compaction/<ts>-<sid>.md` marked `derived: true`. The directory is a dot-directory, so the
+  vault indexer skips it: a model-written summary can never return as verified knowledge.
+- Every decision is logged as JSONL to `~/.config/beyin/compact.log` (digest included), so the timing
+  question can be answered from data. `"jev": "off"` gives a purely mechanical budget as a comparison arm.
+- Config: `compact` block in `pi-hook.json`; env `BEYIN_COMPACT*`. Defaults work with no configuration.
+
 ## 0.1.16
 
 - `/damitma` → `/distillation`. No Turkish command name is left; the old one is not aliased.
