@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "v*"
+  # Publishing from the GitHub side without a tag dance: `gh workflow run publish.yml --ref main`.
+  # The version is taken from package.json, so an already-published version is skipped (idempotent).
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,6 +37,7 @@ jobs:
           npm --version
 
       - name: Tag must match package.json version
+        if: github.ref_type == 'tag'
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
@@ -57,7 +61,24 @@ jobs:
           bun run test/test-distillation.ts
           bun run test/test-jev.ts
 
+      # A dispatch run must be safe to fire at any time: publishing an existing version is a
+      # no-op (npm would otherwise fail with "cannot publish over the previously published
+      # versions"), so the workflow stays green and reports what it did.
+      - name: Already published?
+        id: published
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          if npm view "pi-beyin@$version" version >/dev/null 2>&1; then
+            echo "pi-beyin@$version is already on npm — nothing to publish."
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pi-beyin@$version is not on npm yet — will publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish
+        if: steps.published.outputs.published == 'false'
         run: |
           set -euo pipefail
           version="$(node -p "require('./package.json').version")"
