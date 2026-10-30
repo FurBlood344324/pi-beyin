@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0
+
+- New `extensions/batch.ts`: a **serial-tool-call nudge**. A tool call alone in an assistant message
+  costs a full turn, and measurement over ten days of a real vault put 76% of 13,761 calls in such
+  single-call chains (mean 10.5 steps, longest 249) with only 12% of tool messages carrying two or more
+  calls. When the last three completed turns each had exactly one call and one tool repeats three times,
+  the extension sends a one-line note: put independent calls in one message, put dependent or filtered
+  chains in one `codemode` script, stay serial when there is judgement between steps.
+- The note travels as `sendMessage(…, { triggerTurn: false })` with `display: false`: it never starts a
+  turn of its own and never annotates a tool result, because `read`/`write`/`edit` content is file text.
+- Deliberately quiet: mixed tools in sequence, parallel turns, nested calls (`parentToolCallId`), a
+  cooldown of eight turns, and a six-note session cap all stay silent; `BEYIN_BATCH="0"` (legacy
+  `SERIAL_NUDGE_OFF="1"`) or `BEYIN_DISABLE="1"` turns it off. Per-registration state, so two sessions in
+  one process never share a chain counter.
+- Tests: `test/test-batch.ts` (23 model-free checks) added to CI and to `test/run.sh`.
+
 ## 0.1.17
 
 - New `extensions/compact.ts`: a **working context budget** (240k by default) below pi's own threshold,

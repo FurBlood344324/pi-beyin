@@ -43,3 +43,6 @@ jobs:
 
       - name: compact
         run: bun run test/test-compact.ts
+
+      - name: batch
+        run: bun run test/test-batch.ts

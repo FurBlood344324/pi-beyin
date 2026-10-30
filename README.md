@@ -15,6 +15,7 @@ pi skills.
 | `extensions/distillation.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, makes the agent run `beyin.py sync` and write/update the knowledge note **automatically** when you are working outside the vault; inside the vault it stays a suggestion. `/distillation`. |
 | `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
 | `extensions/compact.ts` | A working context budget (240k by default) well below the model window, where **Jev decides the timing** — compact now or postpone at most twice. The summary itself is pi's own compaction; it is spooled under `<vault>/.pi/compaction/` as a derived artifact. `/compact-status`, `/compact-now`. |
+| `extensions/batch.ts` | Notices when tool calls go out one per turn and says so once: independent calls can share one message, dependent or filtered chains belong in one `codemode` script. Silent for mixed tools and nested calls; `BEYIN_BATCH="0"` turns it off. |
 | `skills/brain` | Vault memory work: find notes, record finished work with its sources, update tasks, keep companion notes current. |
 | `skills/brain-doctor` | Health check: is memory indexed, are sources synced, are skills and updates healthy. |
 | `skills/brain-update` | Check for a new official version, update, or roll back a failed update. |
@@ -116,6 +117,25 @@ Jev verdict, the defer counter and the spool directory.
 
 Decision log: `~/.config/beyin/compact.log` (JSONL, one line per decision/compaction) — including the
 digest, so the question "was this a good moment?" can be answered from data instead of memory.
+
+### Batching: one turn instead of ten
+
+A tool call that sits alone in an assistant message costs a full model turn — latency plus the whole
+context re-read. Measured over ten days of a real vault (103 sessions, 13,761 tool calls): **76%** of
+calls were in single-call message chains (mean 10.5 steps, longest 249), while only **12%** of tool
+messages carried two or more calls. Independent calls can share one message; dependent or filtered
+chains belong in one `codemode` script. Both are decisions the model makes *before* the call, so the
+only useful moment to speak is between turns.
+
+`extensions/batch.ts` counts calls per turn. When the last three completed turns each had exactly one
+call and the same tool appears three times, it sends one line (`[batch] …`, `triggerTurn: false` so it
+never starts a turn of its own, `display: false` so it stays out of the transcript). It stays quiet for
+mixed tools in sequence, for parallel turns, for nested calls, and for eight turns after the previous
+note; the session cap is six. The note is a message, never an annotation on a tool result — `read`,
+`write` and `edit` content is file text and must not be edited underneath the model.
+
+Off: `BEYIN_BATCH="0"` (or `BEYIN_DISABLE="1"`). Thresholds live as constants at the top of the file
+(`SERIAL_WINDOW`, `COOLDOWN_TURNS`, `MAX_NOTES`).
 
 ## Configuration
 

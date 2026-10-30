@@ -66,7 +66,7 @@ else
 fi
 
 hr "4. unit/integration tests (model-free)"
-for t in test-skills test-distillation test-context test-jev test-advisor test-compact; do
+for t in test-skills test-distillation test-context test-jev test-advisor test-compact test-batch; do
 	printf '\n-- %s --\n' "$t"
 	if bun run "$DIR/$t.ts"; then ok "$t passed"; else bad "$t failed (exit $?)"; fi
 done
