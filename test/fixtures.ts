@@ -13,8 +13,20 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export function tmpDir(prefix = "pi-beyin-test-"): string {
-	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+	created.push(dir);
+	return dir;
 }
+
+// Sızıntıyı kapat: her test kendi temp dizinini açar, süreç bitince silinir
+// (BEYIN_KEEP_TMP=1 ile inceleme için tutulabilir).
+const created: string[] = [];
+process.on("exit", () => {
+	if (process.env.BEYIN_KEEP_TMP) return;
+	for (const dir of created) {
+		try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* fail-open */ }
+	}
+});
 
 /** Extension file under test; `query` busts Bun's module cache.
  *
