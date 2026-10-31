@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `skills/source-distillation/SKILL.md`: step 2 now says how to read the capture — `bulk_read mode="outline"`
+  then only the needed ranges, default for any source above ~300 lines. The pairing rule lives in the
+  global `AGENTS.md` context-discipline principle; this is the skill-side echo so a distillation run does
+  not dump a raw paper into context.
+
 ## 0.2.1
 
 - `extensions/context.ts`: context injection now asks Jev **which note, or none** instead of rating every

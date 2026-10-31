@@ -33,7 +33,9 @@ Nothing under `secret_dirs` is read or copied.
 
 ## Flow
 1. **Scope contract:** source (URL list / site root / directory) + target topic + **out of scope**, all clear.
-2. **Capture (raw):** written under `<sources>/<campaign>/`. Never into the vault.
+2. **Capture (raw):** written under `<sources>/<campaign>/`. Never into the vault. Don't dump the raw
+   text into context: open it with `bulk_read mode="outline"`, then only the `file:A-B` ranges you need
+   (default for any source above ~300 lines; the user does not have to ask for this).
 3. **Distill:** one concept note per topic → short description · mechanism/key points · limits · source
    (URL + date). Detail stays in the raw capture.
 4. **Quality wall + two gates** (above).
