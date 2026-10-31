@@ -15,10 +15,24 @@
  *   BEYIN_DISABLE         "1" -> extension goes fully silent
  *   BEYIN_DEBUG           "1" -> write short diagnostics to stderr
  *
- * Jev (optional, off by default): ~/.config/beyin/jev.json -> { enabled, mode, minScore, maxCandidates }
- *   enabled + mode "on"    : retrieved notes are scored by the CommandCode-backed Jev classifier; irrelevant ones dropped
- *   enabled + mode "shadow": scored and logged, but the result is unchanged (measurement)
- *   BEYIN_JEV=0            : turns Jev off for this session
+ * Jev (optional): ~/.config/beyin/jev.json -> { enabled, mode, maxCandidates }
+ *   enabled + mode "on"    : every turn one request decides which note(s), if any, are delivered
+ *                            (choice over the candidates + `none`, a topical gate, then a yes/no per
+ *                            note). No note above the floor -> nothing is injected.
+ *   enabled + mode "shadow": judged and logged, but the pool is delivered unchanged (measurement)
+ *   BEYIN_JEV=0            : turns the judge off for this session (the pool is delivered as before)
+ *   BEYIN_JEV_LOG=0        : do not append decisions to the measurement log
+ *   BEYIN_POOL_LIMIT/CHARS : candidate pool width (default 12 / 30000 chars; the pool needs whole notes)
+ *   BEYIN_PICK_TIMEOUT_MS  : judge deadline (default 6000)
+ *
+ * The policy itself lives in tools/jev-pick.py (one implementation, also used by the vault's
+ * gold-set measurement tools/jev-taban-olcum.py). Measured on 36 real prompts, 2026-10-31:
+ * pool-then-inject-everything hit 11/21 with 15/15 noise turns (precision 4%); the judged path
+ * hit 6/21 with 7/15 noise and ~0.5 notes per turn (precision 32%). The judge buys silence and
+ * precision, not recall — the pool keeps the right note out of the top-7 half the time.
+ *
+ * Jev log: ~/.local/state/pi-beyin/jev-scores.jsonl (append-only, rotated at 4 MB). Side channel
+ * only — nothing reads it back into retrieval or scoring.
  *
  * Fail-open: no error breaks a turn; context is simply absent.
  */
@@ -305,30 +319,31 @@ function jevPrefs(): JevPrefs {
 	}
 }
 
-interface JevScore {
-	score: number;
-	sig: string;
-	at: number;
-}
-
-const jevScores = new Map<string, JevScore>();
-const jevInflight = new Set<string>();
 const topicPrompts: string[] = [];
 const JEV_TTL_MS = 15 * 60 * 1000;
-const JEV_OVERLAP = 0.4;
-// Jev runs concurrently with the main model -> latency ~2–3x. 10 s was not enough at
-// >=4 candidates; since it is background (non-blocking), a generous budget is safe. (work log 0111)
-const JEV_TIMEOUT_MS = 30 * 1000;
 
-function sigTokens(sig: string): Set<string> {
-	return new Set(sig.split(",").filter(Boolean));
-}
+// Measurement side channel (append-only JSONL). Never read back by retrieval: a score log
+// that also ranked would be a self-confirming loop. (vault: knowledge/concepts/dis-kabul-sinyalleri.md)
+const JEV_LOG_FILE = path.join(homedir(), ".local", "state", "pi-beyin", "jev-scores.jsonl");
+const JEV_LOG_MAX_BYTES = 4 * 1024 * 1024;
 
-function overlap(a: Set<string>, b: Set<string>): number {
-	if (a.size === 0 || b.size === 0) return 0;
-	let inter = 0;
-	for (const t of a) if (b.has(t)) inter++;
-	return inter / (a.size + b.size - inter);
+function logJevScores(sig: string, scored: Array<[string, number]>, prefs: JevPrefs): void {
+	if (process.env.BEYIN_JEV_LOG === "0" || scored.length === 0) return;
+	try {
+		fs.mkdirSync(path.dirname(JEV_LOG_FILE), { recursive: true });
+		try {
+			if (fs.statSync(JEV_LOG_FILE).size > JEV_LOG_MAX_BYTES) fs.renameSync(JEV_LOG_FILE, `${JEV_LOG_FILE}.old`);
+		} catch {
+			/* no log yet */
+		}
+		const at = new Date().toISOString();
+		const lines = scored
+			.map(([source, score]) => JSON.stringify({ at, sig, source, score, minScore: prefs.minScore, mode: prefs.mode }))
+			.join("\n");
+		fs.appendFileSync(JEV_LOG_FILE, `${lines}\n`);
+	} catch (err) {
+		debug(`jev log yazılamadı: ${String(err)}`);
+	}
 }
 
 /** Topic signature from the significant words of the last few prompts. */
@@ -343,99 +358,100 @@ function topicSignature(): string {
 	return uniq.slice(0, 40).join(",");
 }
 
-/** Score candidates with Jev (the CommandCode classifier). Called in the background; does not block context. */
-async function jevScoreRecords(
-	ctx: ExtensionContext,
-	query: string,
-	records: BeyinRecord[],
-	prefs: JevPrefs,
-): Promise<Map<string, number> | undefined> {
-	const model = ctx.modelRegistry.findOfType("classifier", JEV_PROVIDER, JEV_MODEL_ID);
-	if (!model) {
-		debug("jev classifier bulunamadı");
-		return undefined;
-	}
-	const capped = records.slice(0, prefs.maxCandidates);
-	if (capped.length === 0) return undefined;
-	const questions: Record<string, { type: "score"; instructions: string; criteria: string[] }> = {};
-	capped.forEach((r, i) => {
-		questions[`c${i}`] = {
-			type: "score",
-			instructions: L(
-				`candidates[${i}] (${r.source ?? "?"}) \`query\` ile ne kadar ilgili?`,
-				`how relevant is candidates[${i}] (${r.source ?? "?"}) to \`query\`?`,
-			),
-			criteria: [
-				L("İlgisiz", "Irrelevant"),
-				L("Arka plan", "Background"),
-				L("Doğrudan ilgili", "Directly relevant"),
-			],
-		};
-	});
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), JEV_TIMEOUT_MS);
-	const external = (ctx as { signal?: AbortSignal }).signal;
-	const onAbort = () => controller.abort();
-	external?.addEventListener("abort", onAbort, { once: true });
-	try {
-		const result = await ctx.modelRegistry.classify(
-			model,
-			{
-				state: {
-					query,
-					candidates: capped.map((r) => ({
-						...(r.source ? { source: r.source } : {}),
-						text: (r.text ?? "").slice(0, 400),
-					})),
-				},
-				questions,
-			},
-			{ signal: controller.signal },
-		);
-		if (result.stopReason !== "stop") {
-			debug(`jev durdu: ${result.errorMessage ?? result.stopReason}`);
-			return undefined;
-		}
-		const scores = new Map<string, number>();
-		capped.forEach((r, i) => {
-			const a = result.answers[`c${i}`];
-			const source = typeof r.source === "string" ? r.source : "";
-			if (source && a && a.type === "score") scores.set(source, a.score);
-		});
-		return scores;
-	} catch (err) {
-		debug(`jev hata: ${String(err)}`);
-		return undefined;
-	} finally {
-		clearTimeout(timer);
-		external?.removeEventListener("abort", onAbort);
-	}
+// ---- Per-turn Jev decision ---------------------------------------------------------------
+// One request: which note (choice over the candidates plus an explicit `none`) and a topical gate;
+// then a yes/no per note for the ones that could still pass. Score = sqrt(group p * yes), the group
+// summing the notes of one project because they split the choice probability. Below the floor
+// nothing is delivered. Shape and floors are ported from the beyin-recall layer (2026-10-31); the
+// policy itself lives in tools/jev-pick.py so this extension and the vault's gold-set measurement
+// (tools/jev-taban-olcum.py) run the same code instead of two drifting copies.
+const PICK_SCRIPT =
+	process.env.BEYIN_PICK || path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "tools", "jev-pick.py");
+const PICK_TIMEOUT_MS = Number(process.env.BEYIN_PICK_TIMEOUT_MS || 6000);
+const POOL_LIMIT = Number(process.env.BEYIN_POOL_LIMIT || 12);
+// The pool needs whole notes (the judge gets a 450-char window of one), so it is wider than the
+// injected text: BEYIN_CONTEXT_CHARS still caps what the agent reads.
+const POOL_CHARS = Number(process.env.BEYIN_POOL_CHARS || 30000);
+// Files the session already carries, or generated views of them: never worth a candidate slot
+// (measured 15% of injected records before this filter).
+const POOL_EXCLUDE = /^(?:🔮 850-Companion|knowledge\/v3|daily|receipts|journal)\/|^(?:AGENTS|CLAUDE)\.md$/;
+
+interface PickDecision {
+	sources: string[];
+	reason: string;
+	maybe: boolean;
+	scores: Array<{ source: string; score: number }>;
 }
 
-/** Compute missing scores in the background (non-blocking); write results to the cache. */
-function scheduleJevScoring(
-	ctx: ExtensionContext,
+const pickCache = new Map<string, { at: number; decision: PickDecision }>();
+const deliveredSources = new Set<string>();
+
+/** Run tools/jev-pick.py: one implementation of the decision policy, shared with the measurement. */
+function runPick(input: unknown, timeout = PICK_TIMEOUT_MS): Promise<string> {
+	return new Promise((resolve) => {
+		try {
+			const child = execFile(
+				PYTHON,
+				[PICK_SCRIPT, "--vault", VAULT],
+				{ cwd: VAULT, timeout, maxBuffer: 16 * 1024 * 1024 },
+				(err, stdout) => resolve(err ? "" : (stdout ?? "")),
+			);
+			child.stdin?.end(JSON.stringify(input));
+		} catch (err) {
+			debug(`jev-pick hata: ${String(err)}`);
+			resolve("");
+		}
+	});
+}
+
+/** Which notes, if any, this turn should get. Undefined = no answer, and the caller stays silent. */
+async function jevDecide(
 	query: string,
+	earlier: string[],
 	records: BeyinRecord[],
-	prefs: JevPrefs,
 	sig: string,
-): void {
-	const pending = records.slice(0, prefs.maxCandidates).filter((r) => {
-		const src = typeof r.source === "string" ? r.source : "";
-		if (!src) return false;
-		if (jevInflight.has(`${src}|${sig}`)) return false;
-		const c = jevScores.get(src);
-		if (c && c.sig === sig && Date.now() - c.at < JEV_TTL_MS) return false;
-		return true;
-	});
-	if (pending.length === 0) return;
-	for (const r of pending) jevInflight.add(`${r.source}|${sig}`);
-	void jevScoreRecords(ctx, query, pending, prefs).then((scores) => {
-		const now = Date.now();
-		if (scores) for (const [src, score] of scores) jevScores.set(src, { score, sig, at: now });
-		for (const r of pending) jevInflight.delete(`${r.source}|${sig}`);
-		debug(`jev (arka plan): ${scores ? scores.size : 0} puan güncellendi`);
-	});
+	judgeK: number,
+): Promise<PickDecision | undefined> {
+	if (records.length === 0) return undefined;
+	const key = `${sig}|${records.map((r) => String(r.source ?? "")).join(",")}`;
+	const cached = pickCache.get(key);
+	if (cached && Date.now() - cached.at < JEV_TTL_MS) return cached.decision;
+	const payload = {
+		query,
+		earlier,
+		shape: { judge_k: judgeK },
+		candidates: records.map((r, i) => ({
+			id: `k${i + 1}`,
+			source: String(r.source ?? ""),
+			text: String(r.text ?? ""),
+		})),
+	};
+	const raw = await runPick(payload);
+	if (!raw.trim()) return undefined;
+	try {
+		const parsed = JSON.parse(raw) as {
+			delivered?: string[];
+			reason?: string;
+			maybe?: boolean;
+			scores?: Array<{ source: string; score: number }>;
+		};
+		const byId = new Map(records.map((r, i) => [`k${i + 1}`, String(r.source ?? "")]));
+		const sources = (parsed.delivered ?? []).map((id) => byId.get(id)).filter((s): s is string => Boolean(s));
+		const decision: PickDecision = {
+			sources,
+			reason: parsed.reason ?? "?",
+			maybe: Boolean(parsed.maybe),
+			scores: Array.isArray(parsed.scores) ? parsed.scores : [],
+		};
+		pickCache.set(key, { at: Date.now(), decision });
+		if (pickCache.size > 200) {
+			for (const [k] of [...pickCache.entries()].sort((a, b) => a[1].at - b[1].at).slice(0, 100)) pickCache.delete(k);
+		}
+		return decision;
+	} catch (err) {
+		debug(`jev karar parse hata: ${String(err)}`);
+		return undefined;
+	}
 }
 
 function formatContext(records: BeyinRecord[]): string | undefined {
@@ -746,40 +762,62 @@ export default function beyinContext(pi: ExtensionAPI) {
 
 		let contextText: string | undefined;
 		const query = prompt.slice(0, 2000);
+		// A follow-up message ("bunu düzelt", "devam") shares no words with the note it needs, so the
+		// pool and the judge both see the last prompts as context. (beyin-recall measured this bottleneck.)
+		const earlier = topicPrompts.slice(-2);
+		const poolQuery = [...earlier, query].join("\n").slice(0, 3000);
 		const res = await runBeyin([
 			"context",
 			"--no-sync",
 			"--budget-chars",
-			String(CONTEXT_CHARS),
+			String(POOL_CHARS),
 			"--limit",
-			"8",
-			query,
+			String(POOL_LIMIT),
+			poolQuery,
 		]);
 		if (res.code === 0 && res.stdout.trim()) {
 			try {
 				const parsed = JSON.parse(res.stdout) as { records?: BeyinRecord[] };
 				const allRecords = Array.isArray(parsed.records) ? parsed.records : [];
-				let records = allRecords;
-				// Jev is NOT synchronous: apply cached scores immediately, score the rest in the background.
+				const pool = (Array.isArray(parsed.records) ? parsed.records : []).filter((r) => {
+					const src = typeof r.source === "string" ? r.source : "";
+					return src.length > 0 && !POOL_EXCLUDE.test(src);
+				});
+				let records = pool;
+				// Notes delivered on earlier turns of this session are not repeated (they are still in
+				// the transcript); the snapshot is taken before this turn adds its own.
+				const already = new Set(deliveredSources);
+				debug(`havuz: ${pool.length}/${allRecords.length} kayıt (${res.stdout.length} kr)`);
 				const prefs = jevPrefs();
-				if (process.env.BEYIN_JEV !== "0" && prefs.enabled && allRecords.length > 0) {
+				const judging = process.env.BEYIN_JEV !== "0" && prefs.enabled && pool.length > 0;
+				if (judging) {
 					topicPrompts.push(query);
 					if (topicPrompts.length > 3) topicPrompts.shift();
 					const sig = topicSignature();
-					const now = Date.now();
-					const sigSet = sigTokens(sig);
-					const applies = (c: JevScore): boolean =>
-						c.sig === sig || overlap(sigSet, sigTokens(c.sig)) >= JEV_OVERLAP;
-					if (prefs.mode === "on") {
-						records = allRecords.filter((r) => {
-							const src = typeof r.source === "string" ? r.source : "";
-							const c = src ? jevScores.get(src) : undefined;
-							if (!c || now - c.at > JEV_TTL_MS || !applies(c)) return true; // no/stale score -> keep it (fail-open)
-							return c.score >= prefs.minScore;
-						});
-						if (records.length !== allRecords.length) debug(`jev (önbellek): ${records.length}/${allRecords.length} kaldı`);
+					const decision = await jevDecide(query, earlier, pool.filter(remoteSafe), sig, prefs.maxCandidates);
+					if (decision) {
+						logJevScores(
+							sig,
+							decision.scores.map((s) => [s.source, s.score] as [string, number]),
+							prefs,
+						);
+						if (prefs.mode === "on") {
+							records = pool.filter((r) => decision.sources.includes(String(r.source)));
+							debug(
+								`jev karar: ${decision.sources.length}/${pool.length} teslim · ${decision.reason}` +
+									`${decision.maybe ? " (belki)" : ""}`,
+							);
+						}
+					} else if (prefs.mode === "on") {
+						// No usable answer from Jev: stay silent rather than inject an unjudged pool.
+						// The old path kept everything (fail-open) and that is where the noise came from.
+						records = [];
+						debug("jev karar yok: sessiz kalındı");
 					}
-					scheduleJevScoring(ctx, query, allRecords.filter(remoteSafe), prefs, sig);
+				}
+				if (prefs.enabled && prefs.mode === "on") {
+					records = records.filter((r) => !already.has(String(r.source)));
+					for (const r of records) deliveredSources.add(String(r.source));
 				}
 				contextText = formatContext(records);
 			} catch (err) {

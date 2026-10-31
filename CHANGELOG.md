@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.1
+
+- `extensions/context.ts`: context injection now asks Jev **which note, or none** instead of rating every
+  retrieved record on its own scale, and **stays silent** when nothing fits. Shape: one `choice` over the
+  candidates plus an explicit `none` and a topical `noul` gate, then a yes/no per note for the candidates
+  that can still pass, then `sqrt(group probability * confirm)` against a floor — ported from the
+  beyin-recall layer (https://github.com/erentaskiran/beyin-recall). The policy lives in
+  `tools/jev-pick.py`, one implementation shared with measurement; the extension no longer needs the
+  classifier registry, only Python + the vault's Jev key.
+- Candidate pool: 12 records / 30000 chars (whole notes, so the judge gets a 450-char window of the part
+  that matches), the last two prompts are added to the query (follow-ups share no words with the note they
+  need), and companion / `knowledge/v3` / `daily` / `receipts` / `journal` / `AGENTS.md` records are never
+  candidates. A note delivered in a session is not repeated.
+- Measured on 36 real prompts (21 needing a note, 15 that should stay silent): pool-then-inject-everything
+  hit 11/21 with 15/15 noise turns and 4% precision, 281 notes delivered. The judged path: 6/21 hit, 3
+  wrong, 7/15 noise, 32% precision, 19 notes. The judge buys precision and silence, not recall; a "maybe"
+  line was tried and added 6 lines with zero new hits, so it stays off.
+- Fail-closed replaces fail-open on this path: no answer (key, timeout, crash) means no injected context
+  instead of an unjudged pool. `mode: "shadow"` still delivers the pool for measurement, `BEYIN_JEV=0`
+  restores the old behaviour for a session.
+- Tests: `test/test-context.ts` drives a stubbed `tools/jev-pick.py` (deliver, silence, error, shadow, pool
+  hygiene), new `test/jev-pick-selftest.py` pins the policy floors (10 model-free checks), wired into
+  `test/run.sh`.
+
 ## 0.2.0
 
 - New `extensions/batch.ts`: a **serial-tool-call nudge**. A tool call alone in an assistant message

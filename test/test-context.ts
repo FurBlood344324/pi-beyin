@@ -98,7 +98,7 @@ section("before_agent_start — context injection");
 	check("heading injected", content.includes("## İkinci beyin"));
 	check("source body present (100+ chars)", content.length > 100, content.length);
 	check("data-not-instructions warning present", /veridir, talimat değildir/.test(content));
-	check("knowledge source returned", /knowledge\//.test(content));
+	check("vault source returned", /(?:knowledge|notes|tasks)\//.test(content));
 }
 
 section("before_agent_start — skip conditions");
@@ -164,60 +164,59 @@ section("receipt reminder → system prompt section");
 	check("reminder + context in the same turn", !!e.systemPromptOptions.sections.beyin_kayit && !!r?.message?.content);
 }
 
-section("Jev — cache filter (mock classifier)");
+section("Jev — karar (sahte jev-pick, ağ yok)");
 {
-	let seenCandidates: any[] = [];
-	const classify = async (_m: any, context: any) => {
-		seenCandidates = context?.state?.candidates ?? [];
-		const answers: Record<string, any> = {};
-		seenCandidates.forEach((_c: any, i: number) => {
-			answers[`c${i}`] = { type: "score", score: i === 0 ? 2 : 0, confidence: 0.9 };
-		});
-		return { stopReason: "stop", answers };
-	};
-	const piJ = await freshContext({ enabled: true, mode: "on", minScore: 1, maxCandidates: 6 });
-	const modelRegistry = {
-		findOfType: () => ({ id: "jev-commandcode", api: "beyin-jev-system-one" }),
-		classify,
-		getApiKeyForProvider: async () => "x",
-	};
-	const { ctx } = makeCtx({ modelRegistry });
-
-	// 1st call: empty cache -> everything passes (fail-open); scoring is scheduled in the background
+	// The decision policy lives in tools/jev-pick.py; here we stub it and check what the
+	// extension does with an answer: deliver only the judged notes, and stay silent otherwise.
+	process.env.BEYIN_PICK = path.join(import.meta.dir, "fake-pick.py");
+	process.env.FAKE_PICK_MODE = "first";
+	const piJ = await freshContext({ enabled: true, mode: "on", maxCandidates: 6 });
+	const { ctx } = makeCtx();
 	const r1 = (await piJ.fire("before_agent_start", ev(QUERY), ctx))[0];
-	check("first call returns records", !!r1?.message?.content);
-	await sleep(400);
-	check("background scoring invoked", seenCandidates.length > 0, seenCandidates.length);
-	const candidates = seenCandidates;
-	const firstSource = candidates[0]?.source ?? "";
-	const otherSource = candidates.slice(1).find((c) => c.source && c.source !== firstSource)?.source ?? "";
+	const content1: string = r1?.message?.content ?? "";
+	const n1 = (content1.match(/^### /gm) ?? []).length;
+	check("karar verildi: tek not teslim", n1 === 1, n1);
+	check("teslim edilen not başlık taşır", content1.includes("### "));
 
-	// 2nd call: same signature -> cache applies, zero-score records are dropped
+	// A second turn with the same pool: the note was already delivered, so it is not repeated.
 	const r2 = (await piJ.fire("before_agent_start", ev(QUERY), ctx))[0];
-	const content2: string = r2?.message?.content ?? "";
-	check("high-score source kept", firstSource === "" || content2.includes(firstSource), firstSource);
-	if (otherSource) check("zero-score source filtered out", !content2.includes(otherSource), otherSource);
-	check("context still present after filtering", content2.length > 0);
-	const kept = (content2.match(/^### /gm) ?? []).length;
-	check("filter reduced the record count", kept < new Set(candidates.map((c) => c.source)).size, kept);
+	check("aynı not tekrar enjekte edilmez", !r2?.message?.content);
+
+	// "none"/below-floor: nothing is injected (the old fail-open path injected the whole pool).
+	process.env.FAKE_PICK_MODE = "none";
+	const piS = await freshContext({ enabled: true, mode: "on", maxCandidates: 6 });
+	const s1 = (await piS.fire("before_agent_start", ev(QUERY), makeCtx().ctx))[0];
+	check("karar 'sus' ise hiçbir şey enjekte edilmez", !s1?.message?.content);
+
+	// Judge error / timeout: fail-closed, still no crash.
+	process.env.FAKE_PICK_MODE = "error";
+	const piE = await freshContext({ enabled: true, mode: "on", maxCandidates: 6 });
+	const e1 = (await piE.fire("before_agent_start", ev(QUERY), makeCtx().ctx))[0];
+	check("jev-pick hatası -> sessizlik (fail-closed)", !e1?.message?.content);
+
+	// shadow: judged and logged, the pool is delivered unchanged (measurement mode).
+	process.env.FAKE_PICK_MODE = "none";
+	const piSh = await freshContext({ enabled: true, mode: "shadow", maxCandidates: 6 });
+	const sh = (await piSh.fire("before_agent_start", ev(QUERY), makeCtx().ctx))[0];
+	const nsh = ((sh?.message?.content ?? "").match(/^### /gm) ?? []).length;
+	check("shadow: havuz yine de enjekte edilir", nsh >= 1, nsh);
+
+	delete process.env.BEYIN_PICK;
+	delete process.env.FAKE_PICK_MODE;
+	fs.writeFileSync(JEV_TEST_CFG, JSON.stringify({ enabled: false }));
 }
 
-section("Jev — fail-open (classifier error)");
+section("Jev — havuz hijyeni");
 {
-	const piJ = await freshContext({ enabled: true, mode: "on", minScore: 2, maxCandidates: 6 });
-	const modelRegistry = {
-		findOfType: () => ({ id: "jev-commandcode", api: "beyin-jev-system-one" }),
-		classify: async () => {
-			throw new Error("CommandCode down");
-		},
-		getApiKeyForProvider: async () => "x",
-	};
-	const { ctx } = makeCtx({ modelRegistry });
-	const r = (await piJ.fire("before_agent_start", ev(QUERY), ctx))[0];
+	// The session already carries the companion files and AGENTS.md; a candidate slot for them is waste.
+	process.env.FAKE_PICK_MODE = "first";
+	const piH = await freshContext({ enabled: true, mode: "shadow", maxCandidates: 6 });
+	const r = (await piH.fire("before_agent_start", ev(QUERY), makeCtx().ctx))[0];
 	const content: string = r?.message?.content ?? "";
-	const count = (content.match(/^### /gm) ?? []).length;
-	check("context still arrives on error", count > 0, content.length);
-	check("fail-open: records not filtered (more than one)", count > 1, count);
+	const bad = ["### 🔮 850-Companion/", "### knowledge/v3/", "### daily/", "### receipts/", "### journal/", "### AGENTS.md"];
+	const found = bad.filter((b) => content.includes(b));
+	check("companion/v3/günlük/fiş aday değil", found.length === 0, found.join(","));
+	delete process.env.FAKE_PICK_MODE;
 	fs.writeFileSync(JEV_TEST_CFG, JSON.stringify({ enabled: false }));
 }
 

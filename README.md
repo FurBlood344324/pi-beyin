@@ -11,7 +11,7 @@ pi skills.
 
 | Resource | What it does |
 |---|---|
-| `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording one. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
+| `extensions/context.ts` | Injects relevant vault notes into every request and reminds the agent to write a receipt when a turn edited files without recording one. With Jev on, one decision per turn picks the note(s) or nothing (`tools/jev-pick.py`: choice + `none`, a topical gate, a per-note confirm); no answer means silence, not the whole pool. Registers the `beyin_jev_memory` / `beyin_jev_review` / `beyin_jev_answer` advisor tools. |
 | `extensions/distillation.ts` | At the end of a turn, if the vault was written but nothing was distilled into `knowledge/`, makes the agent run `beyin.py sync` and write/update the knowledge note **automatically** when you are working outside the vault; inside the vault it stays a suggestion. `/distillation`. |
 | `extensions/jev.ts` | Registers CommandCode's `typesafe/jev` decision model as a pi classifier. `/jev-test`. |
 | `extensions/compact.ts` | A working context budget (240k by default) well below the model window, where **Jev decides the timing** — compact now or postpone at most twice. The summary itself is pi's own compaction; it is spooled under `<vault>/.pi/compaction/` as a derived artifact. `/compact-status`, `/compact-now`. |
@@ -143,7 +143,7 @@ Off: `BEYIN_BATCH="0"` (or `BEYIN_DISABLE="1"`). Thresholds live as constants at
 |---|---|
 | `~/.config/beyin/pi-hook.json` | `excludeProjects` (projects where beyin stays silent), `injectionOnly.<project>` → `{ "reminders": bool, "distillation": bool }` and an optional `compact` block (see below) |
 | `~/.config/beyin/distillation.json` | `{ "enabled", "cooldownMinutes", "maxCandidates" }` |
-| `~/.config/beyin/jev.json` | `{ "enabled", "mode": "on" \| "shadow", "model", "minScore", "maxCandidates" }` |
+| `~/.config/beyin/jev.json` | `{ "enabled", "mode": "on" \| "shadow", "model", "maxCandidates" }` (context injection; the floors live in `tools/jev-pick.py`) |
 | `~/.config/beyin/jev-commandcode.env` | `CMD_API_KEY=...` (only when the pi model registry has no `command-code` key) |
 
 Environment: `BEYIN_VAULT`, `BEYIN_PYTHON`, `BEYIN_HOOK_CONFIG`, `BEYIN_DISTILLATION_CONFIG`,

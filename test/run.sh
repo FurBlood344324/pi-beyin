@@ -78,6 +78,13 @@ else
 	printf '  (skipped — run with BEYIN_LIVE=1 ./run.sh)\n'
 fi
 
+hr "5b. jev-pick policy (model-free unit test)"
+if python3 "$DIR/jev-pick-selftest.py" >/tmp/jev-pick-selftest.log 2>&1; then
+	ok "jev-pick policy: $(grep -o '=== .* ===' /tmp/jev-pick-selftest.log | tail -1)"
+else
+	bad "jev-pick policy: $(grep -E '✗' /tmp/jev-pick-selftest.log | head -3 | tr '\n' ' ')"
+fi
+
 hr "6. real pi session E2E"
 if [ "${BEYIN_E2E:-0}" = "1" ]; then
 	if bash "$DIR/e2e.sh"; then ok "E2E passed"; else bad "E2E failed"; fi
