@@ -72,7 +72,7 @@ for t in test-skills test-distillation test-context test-jev test-advisor test-c
 done
 
 hr "4b. package tool scripts (bash, no vault)"
-for t in test-exp-record; do
+for t in test-exp-record test-maint-scan; do
 	printf '\n-- %s --\n' "$t"
 	if bash "$DIR/$t.sh"; then ok "$t passed"; else bad "$t failed (exit $?)"; fi
 done
