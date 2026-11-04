@@ -71,6 +71,12 @@ for t in test-skills test-distillation test-context test-jev test-advisor test-c
 	if bun run "$DIR/$t.ts"; then ok "$t passed"; else bad "$t failed (exit $?)"; fi
 done
 
+hr "4b. package tool scripts (bash, no vault)"
+for t in test-exp-record test-maint-scan; do
+	printf '\n-- %s --\n' "$t"
+	if bash "$DIR/$t.sh"; then ok "$t passed"; else bad "$t failed (exit $?)"; fi
+done
+
 hr "5. live CommandCode (real API)"
 if [ "${BEYIN_LIVE:-0}" = "1" ]; then
 	if BEYIN_LIVE=1 bun run "$DIR/test-jev-live.ts"; then ok "live Jev passed"; else bad "live Jev failed"; fi
