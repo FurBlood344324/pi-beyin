@@ -27,6 +27,7 @@ bun run test-context.ts
 bun run test-jev.ts
 BEYIN_LIVE=1 bun run test-jev-live.ts
 bash e2e.sh
+bash test-exp-record.sh
 ```
 
 Steps 1–3 of `run.sh` read a live vault; everything else is self-contained. The context query comes from
@@ -42,6 +43,7 @@ Steps 1–3 of `run.sh` read a live vault; everything else is self-contained. Th
 | `test-advisor.ts` | Advisor tools (`beyin_jev_review/answer/memory`), silent-mode gate, JSON stdin bridge (local validation errors only, no remote calls) |
 | `test-jev-live.ts` | Real CommandCode round trip (only with `BEYIN_LIVE=1`) |
 | `e2e.sh` | Real pi session: context injection + reminder (only with `BEYIN_E2E=1`) |
+| `test-exp-record.sh` | `tools/exp-record`: `--help`, `--self-test`, and one fixture project (numbering, template, scope, index idempotence, check, missing profile) |
 | `test-jev-scenario.ts` | **In a given directory**, real pi, multi-turn: injection + Jev background scoring completing (abort/timeout regression) |
 | `run.sh` | All of the above + the pi-harness patch |
 
