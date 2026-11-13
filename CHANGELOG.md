@@ -2,10 +2,25 @@
 
 ## Unreleased
 
-- `skills/source-distillation/SKILL.md`: step 2 now says how to read the capture — `bulk_read mode="outline"`
-  then only the needed ranges, default for any source above ~300 lines. The pairing rule lives in the
-  global `AGENTS.md` context-discipline principle; this is the skill-side echo so a distillation run does
-  not dump a raw paper into context.
+## 0.3.0
+
+Breaking: the package now bridges the JS `beyin` CLI instead of the Python `beyin.py` vault.
+
+- Added `extensions/beyin.ts`, the thin adapter: at `session_start` it runs `beyin ingest --all` then
+  `beyin dream --once` in one detached shell; at `before_agent_start` it injects the `beyin context` block as a
+  hidden message, once per session and cwd. The CLI owns the bytes and the budget; every failure is swallowed.
+  `BEYIN_CLI` and `BEYIN_PACKAGE_ROOT` locate the executable when `beyin` is not on `PATH`.
+- Kept `extensions/batch.ts` unchanged (it never depended on the vault).
+- Removed `extensions/context.ts`, `distillation.ts`, `jev.ts` and `compact.ts`, the bundled skills, `tools/`
+  (`pi-harness-patch.py`, `jev-pick.py`, `exp-record`, `maint-scan`), `THIRD-PARTY-NOTICES.md` (it only covered
+  the harness patch), and the tests that exercised them. Skills and vault tools now live in the vault under
+  `.agents/{skills,tools}`. The JS CLI has no equivalent of Jev, `brain-update` or the harness patch.
+- Tests: new `test/test-beyin.ts` drives the adapter with a fake CLI; `run.sh` no longer needs a vault.
+- CI and publish workflows run `smoke`, `test-beyin` and `test-batch`.
+
+## Older releases (Python `beyin.py` bridge)
+
+Everything below describes the 0.2.x line and earlier, which bridged the Python vault.
 
 ## 0.2.1
 

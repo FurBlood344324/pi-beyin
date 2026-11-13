@@ -50,16 +50,15 @@ jobs:
 
       # Host packages are peer dependencies; only needed to typecheck and run the suite.
       - name: Host packages
-        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node
+        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node typescript
 
       - name: Verify
         run: |
           set -euo pipefail
           bun run typecheck
           bun run test/smoke.ts
-          bun run test/test-skills.ts
-          bun run test/test-distillation.ts
-          bun run test/test-jev.ts
+          bun run test/test-beyin.ts
+          bun run test/test-batch.ts
 
       # A dispatch run must be safe to fire at any time: publishing an existing version is a
       # no-op (npm would otherwise fail with "cannot publish over the previously published

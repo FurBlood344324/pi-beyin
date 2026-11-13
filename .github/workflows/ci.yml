@@ -22,27 +22,17 @@ jobs:
       # Host packages are needed for types/schemas only; pi provides them at runtime.
       # Version pinned on purpose: when the pi API changes, typecheck breaks here first.
       - name: Host packages
-        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node
+        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node typescript
 
       - name: typecheck
         run: bun run typecheck
 
-      # These tests do not need a vault. The vault-dependent ones (context, advisor,
-      # E2E, scenario) run locally: bash test/run.sh
+      # No test needs a vault, a model or network: the beyin CLI is a fake script.
       - name: smoke
         run: bun run test/smoke.ts
 
-      - name: skills
-        run: bun run test/test-skills.ts
-
-      - name: distillation
-        run: bun run test/test-distillation.ts
-
-      - name: jev
-        run: bun run test/test-jev.ts
-
-      - name: compact
-        run: bun run test/test-compact.ts
+      - name: beyin adapter
+        run: bun run test/test-beyin.ts
 
       - name: batch
         run: bun run test/test-batch.ts
