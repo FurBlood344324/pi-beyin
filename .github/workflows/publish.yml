@@ -50,7 +50,7 @@ jobs:
 
       # Host packages are peer dependencies; only needed to typecheck and run the suite.
       - name: Host packages
-        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node
+        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node typescript
 
       - name: Verify
         run: |

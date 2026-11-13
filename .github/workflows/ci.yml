@@ -22,7 +22,7 @@ jobs:
       # Host packages are needed for types/schemas only; pi provides them at runtime.
       # Version pinned on purpose: when the pi API changes, typecheck breaks here first.
       - name: Host packages
-        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node
+        run: bun add --no-save @earendil-works/pi-coding-agent@1.4.0 @earendil-works/pi-ai@1.4.0 @types/node typescript
 
       - name: typecheck
         run: bun run typecheck
