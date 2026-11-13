@@ -1,7 +1,7 @@
 {
   "name": "pi-beyin",
-  "version": "0.2.2",
-  "description": "pi-native bridge for the beyin second brain: context injection, distillation reminders, Jev advisor tools, a Jev-gated context budget, and a serial-tool-call nudge.",
+  "version": "0.3.0",
+  "description": "pi bridge for the beyin second brain (JS CLI): session-start knock (ingest, dream) and one `beyin context` injection per session and cwd, plus a serial-tool-call nudge. Skills and tools live in the vault, not here.",
   "keywords": [
     "pi-package",
     "pi",
@@ -9,8 +9,7 @@
     "second-brain",
     "vault",
     "context",
-    "memory",
-    "skills"
+    "memory"
   ],
   "license": "MIT",
   "type": "module",
@@ -21,30 +20,19 @@
   },
   "pi": {
     "extensions": [
-      "./extensions/context.ts",
-      "./extensions/distillation.ts",
-      "./extensions/jev.ts",
-      "./extensions/compact.ts",
+      "./extensions/beyin.ts",
       "./extensions/batch.ts"
-    ],
-    "skills": [
-      "./skills"
     ]
   },
   "files": [
     "extensions",
-    "skills",
-    "tools",
     "README.md",
     "CHANGELOG.md",
     "SECURITY.md",
-    "LICENSE",
-    "THIRD-PARTY-NOTICES.md"
+    "LICENSE"
   ],
   "scripts": {
     "test": "bash test/run.sh",
-    "test:live": "BEYIN_LIVE=1 bash test/run.sh",
-    "test:e2e": "BEYIN_E2E=1 bash test/run.sh",
     "smoke": "bun run test/smoke.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

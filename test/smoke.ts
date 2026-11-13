@@ -1,13 +1,6 @@
 import { extensionUrl } from "./fixtures.ts";
 
-const distillation = await import(extensionUrl("distillation"));
-const context = await import(extensionUrl("context"));
-const jev = await import(extensionUrl("jev"));
-const compact = await import(extensionUrl("compact"));
-console.log(
-	"import ok:",
-	typeof distillation.default,
-	typeof context.default,
-	typeof jev.default,
-	typeof compact.default,
-);
+const beyin = await import(extensionUrl("beyin"));
+const batch = await import(extensionUrl("batch"));
+console.log("import ok:", typeof beyin.default, typeof batch.default);
+if (typeof beyin.default !== "function" || typeof batch.default !== "function") process.exit(1);

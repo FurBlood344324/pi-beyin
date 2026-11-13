@@ -1,7 +1,7 @@
 /**
  * Shared harness for the beyin pi-native extension tests.
  * Mocks the pi API; extensions are driven through this mock.
- * Uses real beyin.py commands and (optionally) a real CommandCode call.
+ * No vault or model is involved: tests use a fake beyin CLI script.
  */
 
 export type Handler = (event: any, ctx: any) => any;

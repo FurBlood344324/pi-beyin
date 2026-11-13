@@ -33,7 +33,7 @@ process.on("exit", () => {
  * Note: an absolute path is used — Bun ignores the query string on `file://` URLs,
  * so `?fresh=` cache-busting silently does nothing (measured: the same module instance comes back).
  */
-export function extensionUrl(name: "context" | "distillation" | "jev" | "compact", query = ""): string {
+export function extensionUrl(name: "beyin" | "batch", query = ""): string {
 	const file = path.join(HERE, "..", "extensions", `${name}.ts`);
 	return query ? `${file}?${query}` : file;
 }
