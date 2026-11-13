@@ -9,10 +9,11 @@ vault into a pi session.
 | Resource | What it does |
 |---|---|
 | `extensions/beyin.ts` | **Session start:** runs `beyin ingest --all` and then `beyin dream --once` in one detached shell, so the session never waits. **Before each agent start:** injects the `beyin context` block as a hidden message, once per session and again only when the working directory changes. |
+| `extensions/beyin.ts` (tools) | Five native tools, called like `bash` or `write`: `beyin_recall`, `beyin_note`, `beyin_correct`, `beyin_receipt`, `beyin_task`. Each maps its parameters to the CLI's flags, runs `beyin` and returns the output; the CLI owns every rule. |
 | `extensions/batch.ts` | Notices when tool calls go out one per turn and says so once: independent calls can share one message, dependent or filtered chains belong in one `codemode` script. Silent for parallel work. Off with `BEYIN_BATCH=0`. |
 
-There are no registered tools, no skills and no helper scripts in this package. The model reaches the vault
-by running the CLI through the shared `beyin` skill. Skills (`beyin`, `brain-doctor`, `experiment-record`,
+The only registered tools are the five thin wrappers above; there are no skills and no helper scripts in this
+package. Everything else reaches the vault by running the CLI through the shared `beyin` skill. Skills (`beyin`, `brain-doctor`, `experiment-record`,
 `journal`, `literature`, `maintenance`, `source-distillation`) and the vault tools (`exp-record`,
 `maint-scan`, `vault-graf.py`, `beyin-smoke`, the dream scripts) live in the vault under
 `.agents/{skills,tools}` and are linked into pi from there. One owner, no copy to drift.

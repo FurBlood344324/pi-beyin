@@ -97,4 +97,28 @@ try {
 }
 check("knock never throws", !knockThrew);
 
+
+section("native tools");
+{
+	const { TOOLS, argsFor, runTool } = mod;
+	const pi = new MockPi();
+	beyinPi(pi);
+	check(
+		"five tools register",
+		[...pi.tools.keys()].join(",") === "beyin_recall,beyin_note,beyin_correct,beyin_receipt,beyin_task",
+	);
+	check("every tool has required params and a short description", [...pi.tools.values()].every((d: any) => d.parameters.required.length > 0 && d.description.length < 120));
+	check("a pi without registerTool still loads", (() => { try { beyinPi({ on() {} }); return true; } catch { return false; } })());
+	const spec = (n: string) => TOOLS.find((t: any) => t.name === n);
+	check("query is positional", argsFor(spec("beyin_recall"), { query: "a b", limit: 2 }).join("|") === "recall|a b|--limit|2");
+	check("arrays repeat their flag", argsFor(spec("beyin_receipt"), { summary: "s", refs: ["x", "y"] }).join("|") === "receipt|--summary|s|--refs|x|--refs|y");
+	const env = { ...process.env, BEYIN_CLI: fake, FAKE_LOG: log };
+	const miss: any = await runTool(spec("beyin_note"), { title: "t" }, env);
+	check("missing params come back as text", miss.details.ok === false && /missing: domain, body/.test(miss.content[0].text));
+	const ok: any = await runTool(spec("beyin_correct"), { text: "rule" }, env);
+	check("a call reaches the CLI with its flags", ok.details.ok === true && fs.readFileSync(log, "utf8").includes("correct --text rule"));
+	const gone: any = await runTool(spec("beyin_recall"), { query: "x" }, { ...process.env, BEYIN_CLI: path.join(dir, "nope.js") });
+	check("a missing CLI is a text failure, not a throw", gone.details.ok === false);
+}
+
 summary();
