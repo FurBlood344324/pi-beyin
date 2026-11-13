@@ -1,12 +1,14 @@
 /**
  * beyin on pi: the thin adapter (docs/design/04-adapters.md sections 4-6 and 8).
  *
- * Two seams and no tools. The model reaches the vault through the `beyin`
- * skill, which runs the CLI; pi gets no registered tools (04 section 7,
- * option A), so every definition is not paid in every request.
+ * Two seams and five thin tools. The tools are native calls (like bash or
+ * write) that run the `beyin` CLI and return its JSON; the CLI owns every
+ * rule, the adapter only maps arguments to flags. Descriptions are one line
+ * each so the per-request definition cost stays small.
  *
  *   session_start      knock: `beyin ingest --all`, then `beyin dream --once`, detached
  *   before_agent_start inject `beyin context` once per session, again on a cwd change
+ *   tools              beyin_recall, beyin_note, beyin_correct, beyin_receipt, beyin_task
  *
  * Nothing here formats the block: the CLI owns the bytes and the 4,900 B
  * budget (src/context.js:23), so both harnesses print the same text. Every
@@ -17,9 +19,11 @@ import { execFile, spawn } from "node:child_process";
 import { basename, join } from "node:path";
 
 const CONTEXT_TIMEOUT_MS = 3000;
+const TOOL_TIMEOUT_MS = 20000;
 
 export interface PiExtensionApi {
   on(event: string, handler: (event: any, ctx: any) => any): unknown;
+  registerTool?(definition: any): unknown;
 }
 
 /**
@@ -95,7 +99,150 @@ export function knock(env: Record<string, string | undefined> = process.env): vo
   }
 }
 
+
+type ToolSpec = {
+  name: string;
+  verb: string;
+  description: string;
+  required: string[];
+  /** parameter -> JSON-schema fragment; string[] params repeat the flag. */
+  props: Record<string, Record<string, unknown>>;
+};
+
+const str = (description: string) => ({ type: "string", description });
+const list = (description: string) => ({ type: "array", items: { type: "string" }, description });
+
+export const TOOLS: ToolSpec[] = [
+  {
+    name: "beyin_recall",
+    verb: "recall",
+    description: "Search past sessions in the second brain (BM25 transcript hits as JSON).",
+    required: ["query"],
+    props: {
+      query: str("search text"),
+      limit: { type: "number", description: "max hits (default 7)" },
+      harness: str("dsh | claude | pi"),
+      project: str("project name"),
+      kind: str("page | event"),
+    },
+  },
+  {
+    name: "beyin_note",
+    verb: "note",
+    description: "Write a lasting fact, decision or method to the vault.",
+    required: ["title", "domain", "body"],
+    props: {
+      title: str("note title"),
+      domain: str("an existing notes/ domain"),
+      body: str("the fact"),
+      confidence: str("checked (verified against a source) | unconfirmed"),
+      project: str("project name"),
+      source: list("source paths"),
+      link: list("linked note slugs"),
+    },
+  },
+  {
+    name: "beyin_correct",
+    verb: "correct",
+    description: "Record an operator correction as a one-line rule.",
+    required: ["text"],
+    props: { text: str("one-line rule"), source: str("default operator"), date: str("YYYY-MM-DD"), project: str("project name") },
+  },
+  {
+    name: "beyin_receipt",
+    verb: "receipt",
+    description: "Record a receipt for finished work; refs are the files it touched.",
+    required: ["summary", "refs"],
+    props: {
+      summary: str("what finished"),
+      refs: list("files the work touched"),
+      project: str("project name"),
+      session: str("session id"),
+      source: list("source paths"),
+    },
+  },
+  {
+    name: "beyin_task",
+    verb: "task",
+    description: "Create or update a task with one concrete next step (a second call appends).",
+    required: ["slug", "body"],
+    props: {
+      slug: str("task slug"),
+      body: str("one concrete next step"),
+      status: str("default open"),
+      next: str("what unblocks it"),
+      project: str("project name"),
+      source: list("source paths"),
+    },
+  },
+];
+
+/** Parameters -> argv. `query` is positional; arrays repeat their flag; unknown keys are ignored. */
+export function argsFor(spec: ToolSpec, params: Record<string, unknown>): string[] {
+  const args: string[] = [spec.verb];
+  for (const key of Object.keys(spec.props)) {
+    const value = params?.[key];
+    if (value === undefined || value === null || value === "") continue;
+    if (key === "query") {
+      args.push(String(value));
+      continue;
+    }
+    for (const one of Array.isArray(value) ? value : [value]) args.push("--" + key, String(one));
+  }
+  return args;
+}
+
+/** Runs one CLI verb. Never throws: a failure is a text result the model can read. */
+export function runTool(
+  spec: ToolSpec,
+  params: Record<string, unknown>,
+  env: Record<string, string | undefined> = process.env,
+): Promise<{ content: { type: "text"; text: string }[]; details: Record<string, unknown> }> {
+  const missing = spec.required.filter((key) => {
+    const value = params?.[key];
+    return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+  });
+  const reply = (text: string, ok: boolean) => ({ content: [{ type: "text" as const, text }], details: { ok } });
+  if (missing.length) return Promise.resolve(reply("missing: " + missing.join(", "), false));
+  const { file, prefix } = commandFor(env);
+  return new Promise((done) => {
+    execFile(
+      file,
+      [...prefix, ...argsFor(spec, params)],
+      { env, timeout: TOOL_TIMEOUT_MS, maxBuffer: 1 << 20 },
+      (error, stdout, stderr) => {
+        const out = String(stdout ?? "").trim();
+        if (error) {
+          done(reply((String(stderr ?? "").trim() || out || String(error.message)).slice(0, 4000), false));
+          return;
+        }
+        done(reply(out || "ok", true));
+      },
+    );
+  });
+}
+
+function registerTools(pi: PiExtensionApi): void {
+  if (typeof pi.registerTool !== "function") return;
+  for (const spec of TOOLS) {
+    try {
+      pi.registerTool({
+        name: spec.name,
+        label: spec.name,
+        description: spec.description,
+        parameters: { type: "object", properties: spec.props, required: spec.required },
+        async execute(_id: string, params: Record<string, unknown>) {
+          return runTool(spec, params);
+        },
+      });
+    } catch {
+      // Fail open: a tool that cannot register must not break the session.
+    }
+  }
+}
+
 export default function beyinPi(pi: PiExtensionApi): void {
+  registerTools(pi);
   // One variable, per 04 section 5: the cwd the block was emitted for. It is
   // the per-session flag the brief asks for, and it makes the open question in
   // 04 section 11 (does before_agent_start fire once per prompt or once per

@@ -1,6 +1,6 @@
 {
   "name": "pi-beyin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "pi bridge for the beyin second brain (JS CLI): session-start knock (ingest, dream) and one `beyin context` injection per session and cwd, plus a serial-tool-call nudge. Skills and tools live in the vault, not here.",
   "keywords": [
     "pi-package",

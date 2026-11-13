@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.4.0
+
+- `extensions/beyin.ts` now registers five native tools: `beyin_recall`, `beyin_note`, `beyin_correct`,
+  `beyin_receipt`, `beyin_task`. Parameters map to the `beyin` CLI's flags (`query` positional, array
+  parameters repeat their flag); the CLI's output comes back as the result. Missing required parameters and CLI
+  failures are returned as text, never thrown. A pi without `registerTool` still loads the adapter.
+- Same file as the vault's `adapters/pi/index.ts`; the descriptions are one line to keep the per-request cost small.
+
 ## 0.3.0
 
 Breaking: the package now bridges the JS `beyin` CLI instead of the Python `beyin.py` vault.
